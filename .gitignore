@@ -1,0 +1,16 @@
+# Environnement virtuel Python
+venv/
+.venv/
+ENV/
+
+# Base de données SQLite locale
+*.db
+*.sqlite3
+instance/
+
+# Fichiers de cache Python
+__pycache__/
+*.py[cod]
+
+# Fichiers système et de configuration sensibles
+.env

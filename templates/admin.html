@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administration - Butembo Mapper</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background: #f4f6f9; }
+        .sidebar { background: #2c3e50; min-height: 100vh; color: white; }
+        .sidebar .nav-link { color: rgba(255,255,255,0.8); }
+        .sidebar .nav-link:hover { color: white; background: rgba(255,255,255,0.1); }
+        .card { border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); border: none; }
+        .stat-card { background: white; border-radius: 12px; padding: 20px; text-align: center; margin-bottom: 20px; }
+        .stat-card i { font-size: 2rem; color: #3498db; }
+        .stat-card h3 { font-size: 2rem; margin: 10px 0 0; }
+        .stat-card .stat-label { color: #6c757d; font-size: 0.9rem; margin-top: 5px; }
+        #alertContainer { position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 280px; }
+        .alert-custom {
+            background: white; border-radius: 10px; padding: 12px 20px; margin-bottom: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .badge-pending { background: #ffc107; color: #212529; }
+        .badge-approved { background: #28a745; color: white; }
+        .badge-rejected { background: #dc3545; color: white; }
+        .status-badge { font-size: 0.75rem; padding: 0.35rem 0.65rem; }
+        .action-buttons .btn { margin: 0 2px; }
+        .table td { vertical-align: middle; }
+        .status-approved { color: #28a745; }
+        .status-rejected { color: #dc3545; }
+        .status-pending { color: #ffc107; }
+        .date-cell { font-size: 0.8rem; white-space: nowrap; }
+        .user-detail-card { background: #f8f9fa; border-radius: 8px; padding: 15px; margin-bottom: 10px; }
+        .user-detail-card h6 { color: #2c3e50; }
+        .mini-map { height: 150px; border-radius: 6px; border: 1px solid #ddd; }
+        .icon-emoji { font-size: 1.1rem; margin-right: 4px; }
+        #publishModal .modal-body p { margin-bottom: 0.3rem; }
+        #publishModal .modal-body hr { margin: 0.5rem 0; }
+        #publishModal .modal-body .detail-label { font-weight: 600; color: #2c3e50; }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-2 sidebar p-3">
+                <h4 class="text-center mb-4"><i class="fas fa-crown"></i> Admin</h4>
+                <nav class="nav flex-column">
+                    <a class="nav-link py-2" href="#" onclick="showSection('dashboard')"><i class="fas fa-tachometer-alt"></i> Tableau de bord</a>
+                    <a class="nav-link py-2" href="#" onclick="showSection('points')"><i class="fas fa-map-marker-alt"></i> Points</a>
+                    <a class="nav-link py-2" href="#" onclick="showSection('routes')"><i class="fas fa-road"></i> Routes</a>
+                    <a class="nav-link py-2" href="#" onclick="showSection('users')"><i class="fas fa-users"></i> Utilisateurs</a>
+                    <hr>
+                    <a class="nav-link py-2" href="/"><i class="fas fa-home"></i> Accueil</a>
+                    <a class="nav-link py-2" href="/profile"><i class="fas fa-user"></i> Profil</a>
+                    <a class="nav-link py-2" href="#" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Déconnexion</a>
+                </nav>
+            </div>
+            
+            <div class="col-md-10 p-4">
+                <div id="dashboardSection">
+                    <h2 class="mb-4">Tableau de bord</h2>
+                    <div class="row" id="stats"></div>
+                </div>
+                
+                <div id="pointsSection" style="display:none;">
+                    <h2 class="mb-4">Tous les points</h2>
+                    <div class="card p-3">
+                        <div id="pointsList"></div>
+                    </div>
+                </div>
+                
+                <div id="routesSection" style="display:none;">
+                    <h2 class="mb-4">Routes à valider</h2>
+                    <div class="card p-3">
+                        <div id="routesList"></div>
+                    </div>
+                </div>
+                
+                <div id="usersSection" style="display:none;">
+                    <h2 class="mb-4">Utilisateurs</h2>
+                    <div class="card p-3">
+                        <div id="usersList"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Détails Utilisateur -->
+    <div class="modal fade" id="userModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-user-cog"></i> Détails de l'utilisateur</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="userModalBody">
+                    <!-- Rempli dynamiquement -->
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de publication Google Maps -->
+    <div class="modal fade" id="publishModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title"><i class="fab fa-google"></i> Publier sur Google Maps</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="publishModalBody">
+                    <!-- Rempli dynamiquement -->
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                    <button class="btn btn-primary" onclick="copyPublishDetails()">
+                        <i class="fas fa-copy"></i> Copier les détails
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="alertContainer"></div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Objet icons pour affichage des catégories
+        const icons = {
+            ecole: { emoji: '🏫' },
+            ecole_primaire: { emoji: '🏫' },
+            ecole_secondaire: { emoji: '🏫' },
+            universite: { emoji: '🎓' },
+            hopital: { emoji: '🏥' },
+            clinique: { emoji: '🏥' },
+            pharmacie: { emoji: '💊' },
+            marche: { emoji: '🛒' },
+            supermarche: { emoji: '🛍️' },
+            boutique: { emoji: '👗' },
+            eglise: { emoji: '⛪' },
+            mosquee: { emoji: '🕌' },
+            administration: { emoji: '🏢' },
+            mairie: { emoji: '🏛️' },
+            poste: { emoji: '📮' },
+            banque: { emoji: '🏦' },
+            restaurant: { emoji: '🍽️' },
+            hotel: { emoji: '🏨' },
+            residentiel: { emoji: '🏠' },
+            logement: { emoji: '🏡' },
+            appartement: { emoji: '🏢' },
+            rond_point: { emoji: '🔄' },
+            garage: { emoji: '🔧' },
+            lavage: { emoji: '🧼' },
+            station_service: { emoji: '⛽' },
+            gym: { emoji: '💪' },
+            terrain_jeu: { emoji: '⚽' },
+            parking: { emoji: '🅿️' },
+            monument: { emoji: '🏛️' },
+            bar: { emoji: '🍻' },
+            boulangerie: { emoji: '🥖' },
+            coiffeur: { emoji: '💇‍♂️' },
+            taxi: { emoji: '🚖' },
+            gare_routiere: { emoji: '🚌' },
+            cimetiere: { emoji: '🪦' },
+            route: { emoji: '🛤️' },
+            bureau: { emoji: '📁' },
+            barriere: { emoji: '🚧' },
+            default: { emoji: '📍' },
+            passage_interdit: { emoji: '🚫' },
+            danger: { emoji: '⚠️' },
+            sens_unique: { emoji: '🔀' }
+        };
+        
+        let currentUser = null;
+        let pointsData = [];
+        let routesData = [];
+        let publishData = null;
+        
+        function getCurrentUser() { const u = localStorage.getItem('user'); return u ? JSON.parse(u) : null; }
+        
+        function showAlert(message, type) {
+            const container = document.getElementById('alertContainer');
+            const alert = document.createElement('div');
+            alert.className = `alert-custom alert-${type}`;
+            alert.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} text-${type === 'success' ? 'success' : 'danger'}"></i> ${message}`;
+            container.appendChild(alert);
+            setTimeout(() => alert.remove(), 4000);
+        }
+        
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        }
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // ---------- PUBLIER SUR GOOGLE MAPS ----------
+        function publishPointToGoogleMaps(pointId) {
+            fetch(`/api/points/${pointId}`)
+                .then(res => {
+                    if (!res.ok) throw new Error('Erreur chargement des détails');
+                    return res.json();
+                })
+                .then(point => {
+                    publishData = point;
+                    const body = document.getElementById('publishModalBody');
+                    body.innerHTML = `
+                        <p><span class="detail-label">Nom :</span> ${escapeHtml(point.nom)}</p>
+                        <p><span class="detail-label">Catégorie :</span> ${escapeHtml(point.categorie)}</p>
+                        <p><span class="detail-label">Adresse :</span> ${escapeHtml(point.adresse || 'Non renseignée')}</p>
+                        <p><span class="detail-label">Téléphone :</span> ${escapeHtml(point.telephone || 'Non renseigné')}</p>
+                        <p><span class="detail-label">Site web :</span> ${point.website ? escapeHtml(point.website) : 'Non renseigné'}</p>
+                        <p><span class="detail-label">Description :</span> ${escapeHtml(point.description || 'Aucune description')}</p>
+                        <p><span class="detail-label">Coordonnées GPS :</span> ${point.latitude.toFixed(6)}, ${point.longitude.toFixed(6)}</p>
+                        <hr>
+                        <p class="text-muted small">
+                            <i class="fas fa-info-circle"></i> Google Maps s'ouvre dans un nouvel onglet. 
+                            Utilisez l'option <strong>« Ajouter un lieu »</strong> ou <strong>« Suggérer une modification »</strong> 
+                            et collez les détails copiés via le bouton ci-dessous.
+                        </p>
+                    `;
+                    const modal = new bootstrap.Modal(document.getElementById('publishModal'));
+                    modal.show();
+                    const url = `https://www.google.com/maps?q=${point.latitude},${point.longitude}+(${encodeURIComponent(point.nom)})`;
+                    window.open(url, '_blank');
+                })
+                .catch(err => {
+                    showAlert('Erreur lors de la récupération des données : ' + err.message, 'danger');
+                    console.error(err);
+                });
+        }
+        
+        function publishRouteToGoogleMaps(routeId) {
+            fetch(`/api/admin/routes-all`)
+                .then(res => res.json())
+                .then(routes => {
+                    const route = routes.find(r => r.id === routeId);
+                    if (!route) throw new Error('Route non trouvée');
+                    publishData = route;
+                    try {
+                        const coords = JSON.parse(route.geometrie);
+                        if (!coords || coords.length === 0) throw new Error('Géométrie invalide');
+                        let latSum = 0, lngSum = 0;
+                        coords.forEach(c => { latSum += c[0]; lngSum += c[1]; });
+                        const centerLat = latSum / coords.length;
+                        const centerLng = lngSum / coords.length;
+                        const body = document.getElementById('publishModalBody');
+                        body.innerHTML = `
+                            <p><span class="detail-label">Nom :</span> ${escapeHtml(route.nom)}</p>
+                            <p><span class="detail-label">Catégorie :</span> ${escapeHtml(route.categorie || 'route')}</p>
+                            <p><span class="detail-label">Type d'accès :</span> ${route.type_acces === 'tous' ? 'Tous (véhicules, motos, piétons)' : route.type_acces === 'sans_vehicule' ? 'Sans véhicule (motos, piétons)' : 'Piétons seulement'}</p>
+                            <p><span class="detail-label">Nombre de voies :</span> ${route.nombre_voies || 1}</p>
+                            <p><span class="detail-label">Coordonnées approximatives :</span> ${centerLat.toFixed(6)}, ${centerLng.toFixed(6)}</p>
+                            <hr>
+                            <p class="text-muted small">
+                                <i class="fas fa-info-circle"></i> Google Maps s'ouvre au centre de la route.
+                                Vous pouvez copier les détails pour une éventuelle publication.
+                            </p>
+                        `;
+                        const modal = new bootstrap.Modal(document.getElementById('publishModal'));
+                        modal.show();
+                        const url = `https://www.google.com/maps?q=${centerLat},${centerLng}+(${encodeURIComponent(route.nom)})`;
+                        window.open(url, '_blank');
+                    } catch (e) {
+                        showAlert('Erreur de calcul du centre de la route', 'danger');
+                        console.error(e);
+                    }
+                })
+                .catch(err => {
+                    showAlert('Erreur lors de la récupération de la route', 'danger');
+                    console.error(err);
+                });
+        }
+        
+        function copyPublishDetails() {
+            if (!publishData) {
+                showAlert('Aucune donnée à copier', 'warning');
+                return;
+            }
+            let text = '';
+            if (publishData.latitude !== undefined) {
+                text = `Nom: ${publishData.nom}\nCatégorie: ${publishData.categorie}\nAdresse: ${publishData.adresse || ''}\nTéléphone: ${publishData.telephone || ''}\nSite web: ${publishData.website || ''}\nDescription: ${publishData.description || ''}\nCoordonnées: ${publishData.latitude}, ${publishData.longitude}`;
+            } else if (publishData.geometrie) {
+                try {
+                    const coords = JSON.parse(publishData.geometrie);
+                    let latSum = 0, lngSum = 0;
+                    coords.forEach(c => { latSum += c[0]; lngSum += c[1]; });
+                    const centerLat = latSum / coords.length;
+                    const centerLng = lngSum / coords.length;
+                    text = `Nom: ${publishData.nom}\nType d'accès: ${publishData.type_acces}\nNombre de voies: ${publishData.nombre_voies || 1}\nCoordonnées approximatives: ${centerLat}, ${centerLng}`;
+                } catch(e) {
+                    text = `Nom: ${publishData.nom}`;
+                }
+            } else {
+                text = `Nom: ${publishData.nom}`;
+            }
+            
+            navigator.clipboard.writeText(text).then(() => {
+                showAlert('Détails copiés dans le presse-papiers !', 'success');
+            }).catch(() => {
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                showAlert('Détails copiés !', 'success');
+            });
+        }
+        // -------------------------------------------------
+        
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/admin/stats');
+                if (!response.ok) throw new Error('Erreur chargement stats');
+                const stats = await response.json();
+                
+                document.getElementById('stats').innerHTML = `
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <i class="fas fa-users"></i>
+                            <h3>${stats.total_users}</h3>
+                            <div class="stat-label">Utilisateurs</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <h3>${stats.total_points}</h3>
+                            <div class="stat-label">Total des points</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3" style="border-left: 4px solid #ffc107;">
+                        <div class="stat-card">
+                            <i class="fas fa-clock" style="color: #ffc107;"></i>
+                            <h3 style="color: #ffc107;">${stats.pending_points + stats.pending_routes}</h3>
+                            <div class="stat-label">En attente (points + routes)</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3" style="border-left: 4px solid #28a745;">
+                        <div class="stat-card">
+                            <i class="fas fa-check-circle" style="color: #28a745;"></i>
+                            <h3 style="color: #28a745;">${stats.approved_points + stats.approved_routes}</h3>
+                            <div class="stat-label">Approuvés (points + routes)</div>
+                        </div>
+                    </div>
+                `;
+            } catch(e) {
+                console.error('Erreur chargement stats:', e);
+                document.getElementById('stats').innerHTML = '<div class="alert alert-danger">Erreur chargement des statistiques</div>';
+            }
+        }
+        
+        async function loadPoints() {
+            try {
+                const response = await fetch('/api/admin/points-all');
+                if (!response.ok) throw new Error('Erreur chargement points');
+                pointsData = await response.json();
+                
+                const statusLabels = {
+                    'en_attente': 'En attente',
+                    'approuve': 'Approuvé',
+                    'rejete': 'Rejeté'
+                };
+                
+                const statusBadgeClasses = {
+                    'en_attente': 'badge-pending',
+                    'approuve': 'badge-approved',
+                    'rejete': 'badge-rejected'
+                };
+                
+                let html = `
+                    <input type="text" id="pointSearch" class="form-control mb-3" placeholder="Rechercher par nom ou catégorie..." onkeyup="filterPoints()">
+                    <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Nom</th>
+                                <th>Catégorie</th>
+                                <th>Statut</th>
+                                <th>Contributeur</th>
+                                <th>Date de soumission</th>
+                                <th>Date de validation</th>
+                                <th>Validé par</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pointsTableBody">
+                `;
+                
+                pointsData.forEach(p => {
+                    const iconData = icons[p.categorie] || icons.default;
+                    const catDisplay = `${iconData.emoji} ${escapeHtml(p.categorie)}`;
+                    const isPending = p.status === 'en_attente';
+                    const isApproved = p.status === 'approuve';
+                    
+                    let actionsHtml = '';
+                    if (isPending) {
+                        actionsHtml = `
+                            <button class="btn btn-sm btn-success" onclick="updatePointStatus(${p.id}, 'approuve')">
+                                <i class="fas fa-check"></i> Valider
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="updatePointStatus(${p.id}, 'rejete')">
+                                <i class="fas fa-times"></i> Rejeter
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger ms-1" onclick="deletePoint(${p.id})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        `;
+                    } else {
+                        let publishHtml = '';
+                        if (isApproved) {
+                            publishHtml = `<button class="btn btn-sm btn-success ms-1" onclick="publishPointToGoogleMaps(${p.id})">
+                                <i class="fab fa-google"></i> Publier
+                            </button>`;
+                        }
+                        actionsHtml = `
+                            <span class="${isApproved ? 'status-approved' : 'status-rejected'}">
+                                <i class="fas fa-${isApproved ? 'check-circle' : 'times-circle'}"></i>
+                                ${statusLabels[p.status]}
+                            </span>
+                            ${publishHtml}
+                            <button class="btn btn-sm btn-outline-danger ms-1" onclick="deletePoint(${p.id})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        `;
+                    }
+                    
+                    html += `
+                        <tr>
+                            <td><strong>${escapeHtml(p.nom)}</strong></td>
+                            <td>${catDisplay}</td>
+                            <td><span class="badge ${statusBadgeClasses[p.status]} status-badge">${statusLabels[p.status]}</span></td>
+                            <td>${escapeHtml(p.contributeur || 'Anonyme')}</td>
+                            <td class="date-cell">${formatDate(p.created_at)}</td>
+                            <td class="date-cell">${isPending ? '-' : formatDate(p.validated_at)}</td>
+                            <td>${isPending ? '-' : escapeHtml(p.valide_par || 'Admin')}</td>
+                            <td class="action-buttons">${actionsHtml}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += `</tbody></table></div>`;
+                document.getElementById('pointsList').innerHTML = html;
+            } catch(e) {
+                console.error('Erreur chargement points:', e);
+                document.getElementById('pointsList').innerHTML = '<div class="alert alert-danger">Erreur chargement des points</div>';
+            }
+        }
+        
+        async function updatePointStatus(pointId, status) {
+            try {
+                const response = await fetch(`/api/admin/points/${pointId}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: status })
+                });
+                if (response.ok) {
+                    const statusLabels = {
+                        'approuve': 'approuvé',
+                        'rejete': 'rejeté'
+                    };
+                    showAlert(`Lieu ${statusLabels[status]} avec succès !`, 'success');
+                    await loadStats();
+                    await loadPoints();
+                } else {
+                    const error = await response.json();
+                    showAlert(error.error || 'Erreur lors de la mise à jour', 'danger');
+                }
+            } catch(e) {
+                showAlert('Erreur réseau', 'danger');
+                console.error(e);
+            }
+        }
+        
+        async function deletePoint(id) {
+            if (!confirm('Supprimer définitivement ce lieu ?')) return;
+            try {
+                const response = await fetch(`/api/points/${id}`, { method: 'DELETE' });
+                if (response.ok) {
+                    showAlert('Lieu supprimé', 'success');
+                    await loadStats();
+                    await loadPoints();
+                } else {
+                    const error = await response.json();
+                    showAlert(error.error || 'Erreur lors de la suppression', 'danger');
+                }
+            } catch(e) {
+                showAlert('Erreur réseau', 'danger');
+                console.error(e);
+            }
+        }
+        
+        // --- Routes ---
+        async function loadRoutes() {
+            try {
+                const response = await fetch('/api/admin/routes-all');
+                if (!response.ok) throw new Error('Erreur chargement routes');
+                routesData = await response.json();
+                const statusLabels = {
+                    'en_attente': 'En attente',
+                    'approuve': 'Approuvé ✅',
+                    'rejete': 'Rejeté ❌'
+                };
+                const statusBadge = {
+                    'en_attente': 'badge-pending',
+                    'approuve': 'badge-approved',
+                    'rejete': 'badge-rejected'
+                };
+                const typeLabels = {
+                    'tous': 'Tous (véhicules, motos, piétons)',
+                    'sans_vehicule': 'Sans véhicule (motos, piétons)',
+                    'pietons_seulement': 'Piétons seulement'
+                };
+                let html = `
+                    <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Nom</th>
+                                <th>Catégorie</th>
+                                <th>Type d'accès</th>
+                                <th>Nb voies</th>
+                                <th>Statut</th>
+                                <th>Contributeur</th>
+                                <th>Date de soumission</th>
+                                <th>Date de validation</th>
+                                <th>Validé par</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                routesData.forEach(r => {
+                    const isPending = r.status === 'en_attente';
+                    const isApproved = r.status === 'approuve';
+                    let actions = '';
+                    const deleteButton = `<button class="btn btn-sm btn-outline-danger ms-1" onclick="deleteRoute(${r.id})"><i class="fas fa-trash"></i></button>`;
+                    if (isPending) {
+                        actions = `
+                            <button class="btn btn-sm btn-success" onclick="updateRouteStatus(${r.id}, 'approuve')">Valider</button>
+                            <button class="btn btn-sm btn-danger" onclick="updateRouteStatus(${r.id}, 'rejete')">Rejeter</button>
+                            ${deleteButton}
+                        `;
+                    } else {
+                        let publishHtml = '';
+                        if (isApproved) {
+                            publishHtml = `<button class="btn btn-sm btn-success ms-1" onclick="publishRouteToGoogleMaps(${r.id})">
+                                <i class="fab fa-google"></i> Publier
+                            </button>`;
+                        }
+                        actions = `
+                            <span class="${r.status === 'approuve' ? 'text-success' : 'text-danger'}">${statusLabels[r.status]}</span>
+                            ${publishHtml}
+                            ${deleteButton}
+                        `;
+                    }
+                    const routeIcon = '🛤️';
+                    html += `
+                        <tr>
+                            <td><strong>${routeIcon} ${escapeHtml(r.nom)}</strong></td>
+                            <td>${escapeHtml(r.categorie || 'route')}</td>
+                            <td>${escapeHtml(typeLabels[r.type_acces] || r.type_acces)}</td>
+                            <td>${r.nombre_voies || 1}</td>
+                            <td><span class="badge ${statusBadge[r.status]}">${statusLabels[r.status]}</span></td>
+                            <td>${escapeHtml(r.contributeur || 'Anonyme')}</td>
+                            <td class="date-cell">${formatDate(r.created_at)}</td>
+                            <td class="date-cell">${isPending ? '-' : formatDate(r.validated_at)}</td>
+                            <td>${isPending ? '-' : escapeHtml(r.valide_par || 'Admin')}</td>
+                            <td>${actions}</td>
+                        </tr>
+                    `;
+                });
+                html += `</tbody></table></div>`;
+                document.getElementById('routesList').innerHTML = html;
+            } catch(e) {
+                console.error(e);
+                document.getElementById('routesList').innerHTML = '<div class="alert alert-danger">Erreur chargement des routes</div>';
+            }
+        }
+        
+        async function updateRouteStatus(routeId, status) {
+            try {
+                const response = await fetch(`/api/admin/routes/${routeId}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status })
+                });
+                if (response.ok) {
+                    showAlert('Statut mis à jour', 'success');
+                    loadRoutes();
+                    loadStats();
+                } else {
+                    const err = await response.json();
+                    showAlert(err.error || 'Erreur', 'danger');
+                }
+            } catch(e) {
+                showAlert('Erreur réseau', 'danger');
+            }
+        }
+        
+        // --- Fonction DELETE ROUTE (nouvelle) ---
+        async function deleteRoute(routeId) {
+            if (!confirm('Supprimer définitivement cette route ?')) return;
+            try {
+                const response = await fetch(`/api/routes/${routeId}`, { method: 'DELETE' });
+                if (response.ok) {
+                    showAlert('Route supprimée avec succès', 'success');
+                    await loadStats();
+                    await loadRoutes();
+                } else {
+                    const error = await response.json();
+                    showAlert(error.error || 'Erreur lors de la suppression', 'danger');
+                }
+            } catch(e) {
+                showAlert('Erreur réseau', 'danger');
+                console.error(e);
+            }
+        }
+        
+        // --- Utilisateurs ---
+        async function loadUsers() {
+            try {
+                const res = await fetch('/api/admin/users');
+                if (!res.ok) throw new Error('Erreur chargement utilisateurs');
+                const users = await res.json();
+                
+                let html = `
+                    <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Utilisateur</th>
+                                <th>Rôle</th>
+                                <th>Date d'inscription</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                users.forEach(u => {
+                    const deleteBtn = u.id !== currentUser.id 
+                        ? `<button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})">
+                            <i class="fas fa-trash"></i>
+                           </button>` 
+                        : '<span class="text-muted">Votre compte</span>';
+                    
+                    const roleLabels = {
+                        'admin': 'Admin Principal',
+                        'admin_second': 'Admin Secondaire',
+                        'contributeur': 'Contributeur'
+                    };
+                    
+                    html += `
+                        <tr>
+                            <td><strong>${escapeHtml(u.display_name || u.username)}</strong></td>
+                            <td>${roleLabels[u.role] || u.role}</td>
+                            <td class="date-cell">${formatDate(u.created_at)}</td>
+                            <td>
+                                <button class="btn btn-sm btn-info me-1" onclick="showUserDetails(${u.id})">
+                                    <i class="fas fa-eye"></i> Voir
+                                </button>
+                                ${deleteBtn}
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                html += `</tbody></table></div>`;
+                document.getElementById('usersList').innerHTML = html;
+            } catch(e) {
+                console.error('Erreur chargement utilisateurs:', e);
+                document.getElementById('usersList').innerHTML = '<div class="alert alert-danger">Erreur chargement des utilisateurs</div>';
+            }
+        }
+        
+        async function showUserDetails(userId) {
+            const modal = new bootstrap.Modal(document.getElementById('userModal'));
+            const body = document.getElementById('userModalBody');
+            body.innerHTML = '<div class="text-center"><div class="spinner-border text-primary"></div></div>';
+            modal.show();
+            
+            try {
+                const response = await fetch(`/api/admin/user/${userId}`);
+                if (!response.ok) throw new Error('Erreur chargement');
+                const user = await response.json();
+                
+                let locationHtml = '<p class="text-muted">Position non disponible</p>';
+                if (user.location) {
+                    locationHtml = `
+                        <p><strong>Dernière position :</strong> ${user.location.latitude.toFixed(5)}, ${user.location.longitude.toFixed(5)}</p>
+                        <p><strong>Mode :</strong> ${user.location.mode || 'personne'}</p>
+                        <p><strong>Partage actif :</strong> ${user.location.is_sharing ? '✅ Oui' : '❌ Non'}</p>
+                        <p><strong>Dernière mise à jour :</strong> ${formatDate(user.location.last_update)}</p>
+                        <div id="userMiniMap" class="mini-map"></div>
+                    `;
+                }
+                
+                let contributionsHtml = '<p class="text-muted">Aucune contribution</p>';
+                if (user.contributions && user.contributions.length > 0) {
+                    contributionsHtml = `<div class="table-responsive"><table class="table table-sm table-striped">
+                        <thead><tr><th>Nom</th><th>Catégorie</th><th>Statut</th><th>Date</th></tr></thead>
+                        <tbody>${user.contributions.map(c => {
+                            const iconData = icons[c.categorie] || icons.default;
+                            return `
+                                <tr>
+                                    <td>${iconData.emoji} ${escapeHtml(c.nom)}</td>
+                                    <td>${escapeHtml(c.categorie)}</td>
+                                    <td><span class="badge ${c.status === 'en_attente' ? 'badge-pending' : c.status === 'approuve' ? 'badge-approved' : 'badge-rejected'}">${c.status}</span></td>
+                                    <td class="date-cell">${formatDate(c.created_at)}</td>
+                                </tr>
+                            `;
+                        }).join('')}</tbody></table></div>`;
+                }
+                
+                body.innerHTML = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="user-detail-card">
+                                <h6><i class="fas fa-user"></i> Informations personnelles</h6>
+                                <p><strong>Nom d'utilisateur :</strong> ${escapeHtml(user.username)}</p>
+                                <p><strong>Pseudo :</strong> ${escapeHtml(user.display_name || user.username)}</p>
+                                <p><strong>Email :</strong> ${escapeHtml(user.email)}</p>
+                                <p><strong>Rôle :</strong> ${user.role}</p>
+                                <p><strong>Inscrit le :</strong> ${formatDate(user.created_at)}</p>
+                                <p><strong>Total contributions :</strong> ${user.total_contributions}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="user-detail-card">
+                                <h6><i class="fas fa-map-pin"></i> Position actuelle</h6>
+                                ${locationHtml}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="user-detail-card mt-3">
+                        <h6><i class="fas fa-list"></i> Contributions</h6>
+                        ${contributionsHtml}
+                    </div>
+                `;
+                
+                if (user.location) {
+                    setTimeout(() => {
+                        const miniMap = L.map('userMiniMap').setView([user.location.latitude, user.location.longitude], 14);
+                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(miniMap);
+                        L.marker([user.location.latitude, user.location.longitude]).addTo(miniMap);
+                    }, 200);
+                }
+            } catch(e) {
+                body.innerHTML = `<div class="alert alert-danger">Erreur : ${e.message}</div>`;
+            }
+        }
+        
+        // --- Suppression d'utilisateur (message modifié) ---
+        async function deleteUser(userId) {
+            if (!confirm('Supprimer cet utilisateur ? Ses contributions (points et routes) seront conservées.')) return;
+            try {
+                const response = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
+                if (response.ok) {
+                    showAlert('Utilisateur supprimé, ses contributions ont été conservées', 'success');
+                    await loadUsers();
+                    await loadStats();
+                } else {
+                    const result = await response.json();
+                    showAlert(result.error || 'Impossible de supprimer l\'utilisateur', 'danger');
+                }
+            } catch(e) {
+                showAlert('Erreur réseau', 'danger');
+                console.error(e);
+            }
+        }
+        
+        function showSection(section) {
+            document.getElementById('dashboardSection').style.display = 'none';
+            document.getElementById('pointsSection').style.display = 'none';
+            document.getElementById('routesSection').style.display = 'none';
+            document.getElementById('usersSection').style.display = 'none';
+            document.getElementById(`${section}Section`).style.display = 'block';
+            if (section === 'dashboard') loadStats();
+            if (section === 'points') loadPoints();
+            if (section === 'routes') loadRoutes();
+            if (section === 'users') loadUsers();
+        }
+        
+        async function logout() {
+            await fetch('/api/logout', { method: 'POST' });
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+        }
+        
+        function filterPoints() {
+            const input = document.getElementById('pointSearch').value.toLowerCase();
+            const rows = document.querySelectorAll('#pointsTableBody tr');
+            rows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                row.style.display = text.includes(input) ? '' : 'none';
+            });
+        }
+        
+        currentUser = getCurrentUser();
+        if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'admin_second')) {
+            window.location.href = '/';
+        }
+        
+        loadStats();
+        
+        // Exposer les fonctions globalement
+        window.showUserDetails = showUserDetails;
+        window.updateRouteStatus = updateRouteStatus;
+        window.publishPointToGoogleMaps = publishPointToGoogleMaps;
+        window.publishRouteToGoogleMaps = publishRouteToGoogleMaps;
+        window.copyPublishDetails = copyPublishDetails;
+        window.deleteRoute = deleteRoute;
+        window.deleteUser = deleteUser;
+    </script>
+</body>
+</html>

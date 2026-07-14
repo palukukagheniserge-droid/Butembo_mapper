@@ -1,0 +1,2022 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Butembo Mapper - Localisation en temps réel</title>
+    
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#ffffff">
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <!-- Bibliothèque pour le scan QR -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; overflow: hidden; transition: background 0.5s ease; }
+        #map { height: 100vh; width: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
+        
+        /* Thèmes selon les rôles */
+        .theme-contributeur .navbar-osm { background: rgba(90, 178, 237, 0.619); }
+        .theme-contributeur .brand { color: #1e293b; text-shadow: none; }
+        .theme-contributeur .navbar-osm .btn-outline-secondary { color: #1e293b; border-color: #1e293b; }
+        
+        .theme-admin .navbar-osm { background: rgba(192, 57, 43, 0.96); }
+        .theme-admin .brand { color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        .theme-admin .navbar-osm .btn-outline-secondary { color: white; border-color: white; }
+        
+        .theme-admin_second .navbar-osm { background: rgba(41, 128, 185, 0.96); }
+        .theme-admin_second .brand { color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        .theme-admin_second .navbar-osm .btn-outline-secondary { color: white; border-color: white; }
+        
+        .navbar-osm {
+            position: absolute; top: 0; left: 0; right: 0; z-index: 1000;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 8px 16px;
+            transition: background 0.5s ease;
+        }
+        .navbar-osm .brand { font-size: 16px; font-weight: 600; text-decoration: none; transition: color 0.5s ease; }
+        
+        .control-panel { position: absolute; bottom: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
+        .control-btn {
+            width: 48px; height: 48px; background: white; border: none; border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15); cursor: pointer; font-size: 20px; transition: all 0.2s;
+        }
+        .control-btn:hover { background: #f0f0f0; transform: scale(1.02); }
+        .control-btn.active { background: #4c9aff; color: white; }
+        .control-btn.sharing { background: #22c55e; color: white; animation: pulse-green 2s infinite; }
+        .control-btn.add-mode-active { background: #16a34a; color: white; box-shadow: 0 0 0 2px #22c55e, 0 0 0 4px rgba(34,197,94,0.3); }
+        .control-btn.satellite-active { background: #1e3a5f; color: white; }
+        
+        @keyframes pulse-green {
+            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+        
+        /* ========== ZONE DE RECHERCHE RESPONSIVE ========== */
+        .search-container {
+            position: absolute;
+            top: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            width: 90%;
+            max-width: 350px;
+            transition: all 0.2s ease;
+        }
+        .search-box {
+            background: white;
+            border-radius: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .search-box input {
+            flex: 1;
+            border: none;
+            outline: none;
+            font-size: 14px;
+        }
+        .search-box button {
+            background: none;
+            border: none;
+            color: #4c9aff;
+            cursor: pointer;
+        }
+        
+        /* Responsive */
+        @media (max-width: 576px) {
+            .search-container {
+                top: 60px;
+                width: 95%;
+                max-width: 100%;
+                left: 2.5%;
+                transform: none;
+            }
+            .search-box {
+                padding: 6px 12px;
+                border-radius: 20px;
+            }
+            .search-box input {
+                font-size: 13px;
+            }
+            .search-box button {
+                font-size: 14px;
+            }
+        }
+        @media (min-width: 577px) and (max-width: 768px) {
+            .search-container {
+                max-width: 400px;
+                width: 85%;
+            }
+        }
+        /* ============================================ */
+
+        .floating-panel { position: absolute; bottom: 80px; right: 20px; z-index: 1000; background: white; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); padding: 15px; width: 280px; display: none; }
+        .floating-panel.active { display: block; }
+        
+        .share-code { background: #f0f0f0; padding: 10px; border-radius: 10px; font-family: monospace; font-size: 18px; text-align: center; letter-spacing: 2px; margin: 10px 0; }
+        
+        .people-list { max-height: 200px; overflow-y: auto; }
+        .person-item { padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; align-items: center; gap: 10px; }
+        .person-item:hover { background: #f5f5f5; }
+        .person-online { color: #22c55e; }
+        
+        /* Marqueurs personnalisés */
+        .custom-marker { background: transparent; border: none; }
+        .marker-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            position: relative;
+            width: 40px;
+            height: 40px;
+        }
+        .marker-icon {
+            background: transparent;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: none;
+            border: none;
+            font-size: 12px;
+            opacity: 0.85;
+            transition: opacity 0.15s ease;
+            position: relative;
+            z-index: 1;
+        }
+        .marker-icon:hover { opacity: 1; }
+        .marker-label {
+            background: transparent !important;
+            backdrop-filter: none !important;
+            color: white;
+            font-size: 9px;
+            font-weight: 600;
+            padding: 1px 5px;
+            border-radius: 20px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+            white-space: nowrap;
+            max-width: 100px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2;
+            transition: all 0.3s ease;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            border: 1px solid rgba(255,255,255,0.2);
+            text-shadow: 0 0 4px rgba(0,0,0,0.6), 0 0 8px rgba(0,0,0,0.4);
+            line-height: 1.2;
+            letter-spacing: 0.3px;
+        }
+        .marker-label.satellite {
+            text-shadow: 0 0 6px rgba(0,0,0,0.8), 0 0 12px rgba(0,0,0,0.6);
+        }
+        
+        .temp-marker { filter: drop-shadow(0 0 4px rgba(34,197,94,0.8)); animation: bounce 0.5s ease; }
+        .edit-temp-marker { filter: drop-shadow(0 0 4px rgba(59,130,246,0.8)); animation: bounce 0.5s ease; }
+        
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        
+        .user-marker {
+            background: transparent !important;
+            border: none !important;
+        }
+        
+        .location-marker-wrapper {
+            position: relative;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .location-pulse {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: rgba(26, 115, 232, 0.3);
+            border-radius: 50%;
+            animation: pulse-location 2s infinite;
+            box-shadow: 0 0 0 0 rgba(26,115,232,0.4);
+        }
+        .location-icon {
+            position: relative;
+            font-size: 28px;
+            color: #1a73e8;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        }
+        @keyframes pulse-location {
+            0% { transform: scale(0.8); opacity: 1; }
+            70% { transform: scale(1.4); opacity: 0.5; }
+            100% { transform: scale(1.6); opacity: 0; }
+        }
+
+        .other-user-marker { filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2)); }
+        
+        .route-point-marker {
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            color: white;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 700;
+            border: 3px solid white;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+            transition: transform 0.2s;
+        }
+        .route-point-marker:hover { transform: scale(1.15); }
+        
+        .route-mode-cursor { cursor: crosshair !important; }
+        .route-mode-cursor * { cursor: crosshair !important; }
+        
+        .route-mouse-marker {
+            background: #f59e0b;
+            border: 2px solid white;
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.5);
+        }
+        
+        #alertContainer { position: fixed; bottom: 20px; left: 20px; z-index: 2000; max-width: 280px; }
+        .alert-custom { background: #2c3e50; color: white; border-radius: 8px; padding: 10px 16px; margin-bottom: 8px; font-size: 13px; animation: slideInLeft 0.25s ease-out; }
+        @keyframes slideInLeft { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        
+        @media (max-width: 768px) { .control-btn { width: 44px; height: 44px; font-size: 18px; } .floating-panel { width: 260px; right: 10px; } }
+        .add-mode-cursor, .edit-mode-cursor { cursor: crosshair !important; }
+        .add-mode-cursor *, .edit-mode-cursor * { cursor: crosshair !important; }
+        .modal { pointer-events: none; }
+        .modal-dialog { pointer-events: auto; }
+        .modal-backdrop { pointer-events: none; background-color: rgba(0,0,0,0.3); }
+        .coord-indicator { font-family: monospace; font-size: 11px; color: #666; }
+        
+        .route-legend {
+            background: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        .route-legend .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .route-legend .legend-line {
+            display: inline-block;
+            width: 20px;
+            height: 4px;
+            margin-right: 6px;
+        }
+
+        /* Modal déplaçable */
+        .modal-draggable .modal-header {
+            cursor: grab;
+        }
+        .modal-draggable .modal-header:active {
+            cursor: grabbing;
+        }
+        .modal-draggable .modal-dialog {
+            margin: 0;
+        }
+        .modal-draggable {
+            position: fixed;
+            top: 50px;
+            left: 50%;
+            transform: translate(-50%, 0);
+            width: 90%;
+            max-width: 500px;
+            margin: 0;
+        }
+        .modal-draggable .modal-content {
+            width: 100%;
+        }
+        @media (max-width: 576px) {
+            .modal-draggable {
+                width: 95%;
+                left: 2.5%;
+                transform: none;
+                top: 20px;
+            }
+        }
+
+        .modal-draggable .modal-content {
+            max-height: 80vh;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+        }
+        .modal-draggable .modal-body {
+            overflow-y: auto;
+            flex: 1;
+            padding-bottom: 10px;
+        }
+        .modal-resize-handle {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 20px;
+            height: 20px;
+            cursor: nwse-resize;
+            background: linear-gradient(135deg, transparent 50%, #ccc 50%);
+            border-bottom-right-radius: 8px;
+            z-index: 10;
+        }
+        .modal-resize-handle:hover {
+            background: linear-gradient(135deg, transparent 50%, #888 50%);
+        }
+    </style>
+</head>
+<body class="theme-contributeur">
+    <nav class="navbar-osm">
+        <div class="d-flex justify-content-between align-items-center">
+            <a href="#" class="brand"><i class="fas fa-map-marked-alt"></i> Butembo Mapper</a>
+            <div id="userNav"></div>
+        </div>
+    </nav>
+    
+    <div class="search-container">
+        <div class="search-box">
+            <i class="fas fa-search" style="color: #999;"></i>
+            <input type="text" id="searchInput" placeholder="Rechercher un lieu..." autocomplete="off">
+            <button onclick="searchLocation()"><i class="fas fa-arrow-right"></i></button>
+        </div>
+        <div id="searchResults" style="position: absolute; top: 100%; left: 0; right: 0; background: white; border-radius: 12px; margin-top: 5px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display: none; z-index: 1001;"></div>
+    </div>
+    
+    <div class="control-panel">
+        <button class="control-btn" onclick="zoomIn()">+</button>
+        <button class="control-btn" onclick="zoomOut()">−</button>
+        <button class="control-btn" id="locationBtn" onclick="toggleLocation()">📍</button>
+        <button class="control-btn" id="satelliteBtn" onclick="toggleSatellite()">🛰️</button>
+        <button class="control-btn" id="shareBtn" onclick="toggleSharePanel()" style="background:#8b5cf6;color:white;">🔗</button>
+        <button class="control-btn" id="peopleBtn" onclick="togglePeoplePanel()" style="background:#ec489a;color:white;">👥</button>
+        <button class="control-btn" id="addBtn" onclick="enableAddMode()" style="background:#22c55e;color:white;">+</button>
+    </div>
+    
+    <div class="floating-panel" id="sharePanel">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="mb-0"><i class="fas fa-share-alt"></i> Partager ma position</h6>
+            <button class="btn btn-sm btn-outline-secondary" onclick="closePanels()">Fermer</button>
+        </div>
+        <div class="form-check form-switch mb-2">
+            <input class="form-check-input" type="checkbox" id="sharingToggle" onchange="toggleSharing()">
+            <label class="form-check-label" id="sharingLabel">Partage désactivé</label>
+        </div>
+        <div class="mb-2">
+            <label class="form-label small">Mode de localisation</label>
+            <select id="modeSelect" class="form-select" onchange="updateMode()">
+                <option value="person">Personne</option>
+                <option value="car">Véhicule</option>
+                <option value="motorcycle">Moto</option>
+            </select>
+        </div>
+        <div id="shareCodeSection" style="display:none;">
+            <p class="small text-muted mb-1">Votre code unique (valable 1h):</p>
+            <div class="share-code" id="shareCode"></div>
+            <div id="qrcode" style="display: flex; justify-content: center; margin: 10px 0;"></div>
+            <button class="btn btn-sm btn-secondary w-100" onclick="copyShareCode()">Copier le code</button>
+        </div>
+    </div>
+    
+    <div class="floating-panel" id="peoplePanel">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="mb-0"><i class="fas fa-users"></i> Personnes à proximité</h6>
+            <button class="btn btn-sm btn-outline-secondary" onclick="closePanels()">Fermer</button>
+        </div>
+        <div class="mb-2">
+            <input type="text" id="searchPersonInput" class="form-control form-control-sm" placeholder="Code ou nom...">
+            <div class="d-flex gap-1 mt-1">
+                <button class="btn btn-sm btn-primary w-100" onclick="addPersonByCode()">Ajouter par code</button>
+                <button class="btn btn-sm btn-success w-100" onclick="startQrScan()"><i class="fas fa-qrcode"></i> Scanner</button>
+            </div>
+        </div>
+        <div id="peopleList" class="people-list">
+            <div class="text-muted text-center small">Chargement...</div>
+        </div>
+    </div>
+    
+    <div id="map"></div>
+    <div id="alertContainer"></div>
+    
+    <!-- Modale unique : Ajout / Modification (Point ou Route) -->
+    <div class="modal fade" id="addModal" tabindex="-1" data-bs-backdrop="false" data-bs-keyboard="true">
+        <div class="modal-dialog modal-draggable modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header" id="modalHeader">
+                    <h5 class="modal-title"><i class="fas fa-plus-circle"></i> Ajouter un lieu</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="disableAllModes()"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addForm" onsubmit="event.preventDefault(); submitPoint();">
+                        <input type="hidden" id="pointId">
+                        <div class="mb-2">
+                            <label class="form-label small">Nom du lieu *</label>
+                            <input type="text" id="nom" class="form-control" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Catégorie *</label>
+                            <input type="text" id="categorie" class="form-control" list="categorieList" required placeholder="Choisir ou saisir une catégorie">
+                            <datalist id="categorieList">
+                                <option value="ecole">🏫 École</option>
+                                <option value="ecole_primaire">🏫 École primaire</option>
+                                <option value="ecole_secondaire">🏫 École secondaire</option>
+                                <option value="universite">🎓 Université</option>
+                                <option value="hopital">🏥 Hôpital</option>
+                                <option value="clinique">🏥 Clinique</option>
+                                <option value="pharmacie">💊 Pharmacie</option>
+                                <option value="marche">🛒 Marché</option>
+                                <option value="supermarche">🛍️ Supermarché</option>
+                                <option value="boutique">👗 Boutique</option>
+                                <option value="eglise">⛪ Église</option>
+                                <option value="mosquee">🕌 Mosquée</option>
+                                <option value="administration">🏢 Administration</option>
+                                <option value="mairie">🏛️ Mairie</option>
+                                <option value="poste">📮 Poste</option>
+                                <option value="banque">🏦 Banque</option>
+                                <option value="restaurant">🍽️ Restaurant</option>
+                                <option value="hotel">🏨 Hôtel</option>
+                                <option value="residentiel">🏠 Résidentiel</option>
+                                <option value="logement">🏡 Logement</option>
+                                <option value="appartement">🏢 Appartement</option>
+                                <option value="rond_point">🔄 Rond point</option>
+                                <option value="garage">🔧 Garage</option>
+                                <option value="lavage">🧼 Lavage</option>
+                                <option value="station_service">⛽ Station-service</option>
+                                <option value="gym">💪 Gym</option>
+                                <option value="terrain_jeu">⚽ Terrain de jeu</option>
+                                <option value="parking">🅿️ Parking</option>
+                                <option value="monument">🏛️ Monument</option>
+                                <option value="bar">🍻 Bar</option>
+                                <option value="boulangerie">🥖 Boulangerie</option>
+                                <option value="coiffeur">💇‍♂️ Coiffeur</option>
+                                <option value="taxi">🚖 Taxi</option>
+                                <option value="gare_routiere">🚌 Gare routière</option>
+                                <option value="cimetiere">🪦 Cimetière</option>
+                                <option value="route">🛤️ Route</option>
+                                <option value="bureau">📁 Bureau</option>
+                                <option value="barriere">🚧 Barrière</option>
+                                <option value="passage_interdit">🚫 Passage interdit</option>
+                                <option value="danger">⚠️ Danger</option>
+                                <option value="sens_unique">🔀 Sens unique</option>
+                            </datalist>
+                        </div>
+                        <!-- Champs spécifiques aux routes -->
+                        <div id="routeFields" style="display:none;">
+                            <div class="mb-2">
+                                <label class="form-label small">Type d'accès *</label>
+                                <select id="routeType" class="form-select">
+                                    <option value="tous">Tous (véhicules, motos, piétons)</option>
+                                    <option value="sans_vehicule">Sans véhicule (motos, piétons)</option>
+                                    <option value="pietons_seulement">Piétons seulement</option>
+                                </select>
+                            </div>
+                            <div class="mb-2" id="nbVoiesGroup">
+                                <label class="form-label small">Nombre de voies</label>
+                                <input type="number" id="routeNbVoies" class="form-control" value="1" min="1" max="6">
+                            </div>
+                            <div class="alert alert-info small">
+                                <i class="fas fa-info-circle"></i> Points de la route : <span id="routePointsCount">0</span>
+                                <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="clearRoutePoints()">Effacer</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary ms-1" onclick="undoRoutePoint()">Retirer dernier</button>
+                            </div>
+                            <div id="routePreview" style="height:80px; background:#f8f9fa; border-radius:6px; margin-bottom:8px; display:flex; align-items:center; justify-content:center; color:#6c757d; font-size:13px;">
+                                Cliquez sur la carte pour ajouter des points
+                            </div>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Adresse</label>
+                            <input type="text" id="adresse" class="form-control">
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Téléphone</label>
+                            <input type="text" id="telephone" class="form-control" placeholder="Ex : +243 123 456 789">
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Site web</label>
+                            <input type="text" id="website" class="form-control" placeholder="https://...">
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Description</label>
+                            <textarea id="description" class="form-control" rows="2" placeholder="Courte description"></textarea>
+                        </div>
+                        
+                        <div class="alert alert-primary small py-2 mb-2" id="coordModeAlert">
+                            <i class="fas fa-map-marker-alt"></i> <strong>Cliquez sur la carte</strong> pour sélectionner ou modifier la position
+                        </div>
+                        
+                        <div id="pointCoords">
+                            <div class="row">
+                                <div class="col-6">
+                                    <label class="form-label small">Latitude *</label>
+                                    <input type="text" id="latitude" class="form-control" placeholder="Cliquez sur la carte" readonly required>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small">Longitude *</label>
+                                    <input type="text" id="longitude" class="form-control" placeholder="Cliquez sur la carte" readonly required>
+                                </div>
+                            </div>
+                            <div class="text-center mt-1">
+                                <small class="coord-indicator" id="coordStatus">⚠️ Aucune position sélectionnée</small>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-bs-dismiss="modal" onclick="disableAllModes()">Annuler</button>
+                    <button class="btn btn-primary" onclick="submitPoint()">Enregistrer</button>
+                </div>
+            </div>
+            <div class="modal-resize-handle"></div>
+        </div>
+    </div>
+    
+    <!-- Modale Détails du lieu -->
+    <div class="modal fade" id="lieuModal" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="lieuModalTitle">Détails du lieu</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="disableAllModes()"></button>
+                </div>
+                <div class="modal-body" id="lieuModalBody">
+                    <!-- Rempli dynamiquement -->
+                </div>
+                <div class="modal-footer" id="lieuModalFooter">
+                    <button class="btn btn-secondary" data-bs-dismiss="modal" onclick="disableAllModes()">Fermer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+        let map, markers = {}, currentUser = null;
+        let watchId = null, currentPositionMarker = null;
+        let isSharing = false;
+        let otherUsersMarkers = {};
+        let activeUsers = [];
+        let sharedUsers = [];
+        let shareCode = null;
+        let currentMode = 'person';
+        
+        let addModeEnabled = false;
+        let editModeEnabled = false;
+        let tempMarker = null;
+        let currentEditingPointId = null;
+        let addModal = null;
+        let lieuModal = null;
+        let currentLayer = null;
+        let isSatelliteMode = false;
+        let refreshInterval = null;
+        let routePolyline = null;
+        
+        // Variables pour le tracé de route intégré
+        let routePoints = [];
+        let tempRoutePolyline = null;
+        let tempRouteMarkers = [];
+        let routeTempLine = null;
+        let routeMouseMarker = null;
+        let mouseLatLng = null;
+        let isRouteMode = false;
+        
+        const BUTEMBO = [0.1211, 29.2883];
+        
+        const tileLayers = {
+            standard: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 }),
+            satellite1: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '© Esri', maxZoom: 18 }),
+            satellite2: L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { subdomains: ['mt0', 'mt1', 'mt2', 'mt3'], attribution: '© Google', maxZoom: 20 })
+        };
+        
+        const icons = {
+            ecole: { emoji: '🏫', color: '#22c55e' },
+            ecole_primaire: { emoji: '🏫', color: '#22c55e' },
+            ecole_secondaire: { emoji: '🏫', color: '#22c55e' },
+            universite: { emoji: '🎓', color: '#3b82f6' },
+            hopital: { emoji: '🏥', color: '#ef4444' },
+            clinique: { emoji: '🏥', color: '#ef4444' },
+            pharmacie: { emoji: '💊', color: '#d63384' },
+            marche: { emoji: '🛒', color: '#f59e0b' },
+            supermarche: { emoji: '🛍️', color: '#f43f5e' },
+            boutique: { emoji: '👗', color: '#ec489a' },
+            eglise: { emoji: '⛪', color: '#8b5cf6' },
+            mosquee: { emoji: '🕌', color: '#8b5cf6' },
+            administration: { emoji: '🏢', color: '#3b82f6' },
+            mairie: { emoji: '🏛️', color: '#8b5cf6' },
+            poste: { emoji: '📮', color: '#f59e0b' },
+            banque: { emoji: '🏦', color: '#10b981' },
+            restaurant: { emoji: '🍽️', color: '#ec489a' },
+            hotel: { emoji: '🏨', color: '#14b8a6' },
+            residentiel: { emoji: '🏠', color: '#a855f7' },
+            logement: { emoji: '🏡', color: '#84cc16' },
+            appartement: { emoji: '🏢', color: '#14b8a6' },
+            rond_point: { emoji: '🔄', color: '#fd7e14' },
+            garage: { emoji: '🔧', color: '#6f42c1' },
+            lavage: { emoji: '🧼', color: '#0dcaf0' },
+            station_service: { emoji: '⛽', color: '#f59e0b' },
+            gym: { emoji: '💪', color: '#20c997' },
+            terrain_jeu: { emoji: '⚽', color: '#198754' },
+            parking: { emoji: '🅿️', color: '#0d6efd' },
+            monument: { emoji: '🏛️', color: '#d97706' },
+            bar: { emoji: '🍻', color: '#f97316' },
+            boulangerie: { emoji: '🥖', color: '#f97316' },
+            coiffeur: { emoji: '💇‍♂️', color: '#ec489a' },
+            taxi: { emoji: '🚖', color: '#f97316' },
+            gare_routiere: { emoji: '🚌', color: '#f59e0b' },
+            cimetiere: { emoji: '🪦', color: '#6b7280' },
+            route: { emoji: '🛤️', color: '#64748b' },
+            bureau: { emoji: '📁', color: '#6366f1' },
+            barriere: { emoji: '🚧', color: '#f59e0b' },
+            default: { emoji: '📍', color: '#64748b' },
+            passage_interdit: { emoji: '🚫', color: '#dc3545' },
+            danger: { emoji: '⚠️', color: '#ffc107' },
+            sens_unique: { emoji: '🔀', color: '#0d6efd' }
+        };
+        
+        const modeIcons = { person: '🚶', car: '🚗', motorcycle: '🏍️' };
+        
+        function setTheme(role) {
+            const body = document.body;
+            body.className = '';
+            if (role === 'admin') {
+                body.classList.add('theme-admin');
+            } else if (role === 'admin_second') {
+                body.classList.add('theme-admin_second');
+            } else {
+                body.classList.add('theme-contributeur');
+            }
+        }
+        
+        function initMap() {
+            map = L.map('map', { zoomControl: false, maxZoom: 20, minZoom: 3 }).setView(BUTEMBO, 14);
+            currentLayer = tileLayers.standard;
+            currentLayer.addTo(map);
+            map.on('click', onMapClick);
+            map.on('dblclick', function(e) {
+                if (isRouteMode && routePoints.length >= 2) {
+                    finishRoute();
+                }
+            });
+            routesLayer = L.layerGroup().addTo(map);
+            loadPoints();
+            loadRoutes();
+            loadActiveUsers();
+            refreshInterval = setInterval(loadActiveUsers, 5000);
+            
+            // Gestion du lien partagé avec itinéraire automatique
+            const urlParams = new URLSearchParams(window.location.search);
+            const latParam = parseFloat(urlParams.get('lat'));
+            const lngParam = parseFloat(urlParams.get('lng'));
+            if (!isNaN(latParam) && !isNaN(lngParam)) {
+                map.setView([latParam, lngParam], 16);
+                const marker = L.marker([latParam, lngParam]).addTo(map)
+                    .bindPopup('📍 Position partagée')
+                    .openPopup();
+                // Proposer un itinéraire si la position de l'utilisateur est disponible
+                setTimeout(() => {
+                    if (currentPositionMarker) {
+                        const start = currentPositionMarker.getLatLng();
+                        const url = `https://router.project-osrm.org/route/v1/driving/${start.lng},${start.lat};${lngParam},${latParam}?overview=full&geometries=geojson`;
+                        fetch(url).then(res => res.json()).then(data => {
+                            if (data.code === 'Ok') {
+                                const coords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+                                const poly = L.polyline(coords, { color: '#ff4444', weight: 4, opacity: 0.8 }).addTo(map);
+                                map.fitBounds(poly.getBounds(), { padding: [50, 50] });
+                                const distance = data.routes[0].distance / 1000;
+                                const duration = data.routes[0].duration / 60;
+                                showAlert(`🚗 Itinéraire : ${distance.toFixed(1)} km, ${Math.round(duration)} min`, 'success');
+                            }
+                        }).catch(() => {});
+                    }
+                }, 1000);
+            }
+        }
+        
+        function onMapClick(e) {
+            if (addModeEnabled && isRouteMode) {
+                const latlng = e.latlng;
+                routePoints.push([latlng.lat, latlng.lng]);
+                updateRoutePreview();
+                showAlert(`Point ${routePoints.length} ajouté`, 'success');
+            } else if (addModeEnabled && !isRouteMode) {
+                const lat = e.latlng.lat; const lng = e.latlng.lng;
+                updateCoordinates(lat, lng);
+                showTempMarker(lat, lng, 'add');
+                showAlert(`📍 Position pour le nouveau lieu : ${lat.toFixed(4)}, ${lng.toFixed(4)}`, 'success');
+            } else if (editModeEnabled) {
+                const lat = e.latlng.lat; const lng = e.latlng.lng;
+                updateCoordinates(lat, lng);
+                showTempMarker(lat, lng, 'edit');
+                showAlert(`✏️ Position modifiée : ${lat.toFixed(4)}, ${lng.toFixed(4)}`, 'success');
+            }
+        }
+        
+        // ---------- GESTION DU TRACÉ DE ROUTE ----------
+        function updateRoutePreview() {
+            if (tempRoutePolyline) map.removeLayer(tempRoutePolyline);
+            if (tempRouteMarkers.length) tempRouteMarkers.forEach(m => map.removeLayer(m));
+            tempRouteMarkers = [];
+            
+            if (routePoints.length > 1) {
+                tempRoutePolyline = L.polyline(routePoints, { 
+                    color: '#f59e0b', 
+                    weight: 4, 
+                    dashArray: '8, 6',
+                    opacity: 0.9,
+                    lineJoin: 'round'
+                }).addTo(map);
+            }
+            routePoints.forEach((p, i) => {
+                const marker = L.marker(p, {
+                    draggable: false,
+                    icon: L.divIcon({ 
+                        html: `${i+1}`, 
+                        className: 'route-point-marker',
+                        iconSize: [28, 28],
+                        iconAnchor: [14, 14]
+                    })
+                }).addTo(map);
+                tempRouteMarkers.push(marker);
+            });
+            document.getElementById('routePointsCount').textContent = routePoints.length;
+            const previewDiv = document.getElementById('routePreview');
+            if (routePoints.length === 0) {
+                previewDiv.innerHTML = 'Cliquez sur la carte pour ajouter des points';
+            } else {
+                previewDiv.innerHTML = `${routePoints.length} point(s) tracé(s)`;
+            }
+            
+            if (isRouteMode && routePoints.length > 0) {
+                map.on('mousemove', onRouteMouseMove);
+            } else {
+                map.off('mousemove', onRouteMouseMove);
+                if (routeTempLine) { map.removeLayer(routeTempLine); routeTempLine = null; }
+                if (routeMouseMarker) { map.removeLayer(routeMouseMarker); routeMouseMarker = null; }
+            }
+        }
+        
+        function onRouteMouseMove(e) {
+            if (!isRouteMode || routePoints.length === 0) return;
+            mouseLatLng = e.latlng;
+            
+            if (!routeMouseMarker) {
+                routeMouseMarker = L.circleMarker(mouseLatLng, {
+                    radius: 5,
+                    color: '#f59e0b',
+                    fillColor: '#f59e0b',
+                    fillOpacity: 0.8,
+                    weight: 2,
+                    className: 'route-mouse-marker'
+                }).addTo(map);
+            } else {
+                routeMouseMarker.setLatLng(mouseLatLng);
+            }
+            
+            const lastPoint = routePoints[routePoints.length - 1];
+            const tempCoords = [lastPoint, [mouseLatLng.lat, mouseLatLng.lng]];
+            if (routeTempLine) {
+                routeTempLine.setLatLngs(tempCoords);
+            } else {
+                routeTempLine = L.polyline(tempCoords, {
+                    color: '#f59e0b',
+                    weight: 3,
+                    dashArray: '6, 8',
+                    opacity: 0.7,
+                    lineJoin: 'round'
+                }).addTo(map);
+            }
+        }
+        
+        function finishRoute() {
+            if (routePoints.length < 2) {
+                showAlert('Tracez au moins deux points pour une route', 'warning');
+                return;
+            }
+            if (routeTempLine) { map.removeLayer(routeTempLine); routeTempLine = null; }
+            if (routeMouseMarker) { map.removeLayer(routeMouseMarker); routeMouseMarker = null; }
+            map.off('mousemove', onRouteMouseMove);
+            showAlert('Tracé terminé ! Vous pouvez maintenant enregistrer.', 'success');
+        }
+        
+        function clearRoutePoints() {
+            routePoints = [];
+            if (tempRoutePolyline) { map.removeLayer(tempRoutePolyline); tempRoutePolyline = null; }
+            if (tempRouteMarkers.length) { tempRouteMarkers.forEach(m => map.removeLayer(m)); tempRouteMarkers = []; }
+            if (routeTempLine) { map.removeLayer(routeTempLine); routeTempLine = null; }
+            if (routeMouseMarker) { map.removeLayer(routeMouseMarker); routeMouseMarker = null; }
+            map.off('mousemove', onRouteMouseMove);
+            document.getElementById('routePointsCount').textContent = '0';
+            document.getElementById('routePreview').innerHTML = 'Cliquez sur la carte pour ajouter des points';
+        }
+        
+        function undoRoutePoint() {
+            if (routePoints.length === 0) return;
+            routePoints.pop();
+            updateRoutePreview();
+            if (routePoints.length === 0) {
+                map.off('mousemove', onRouteMouseMove);
+                if (routeTempLine) { map.removeLayer(routeTempLine); routeTempLine = null; }
+                if (routeMouseMarker) { map.removeLayer(routeMouseMarker); routeMouseMarker = null; }
+            }
+        }
+        // ---------- FIN GESTION ROUTE ----------
+        
+        function updateNbVoiesVisibility() {
+            const routeType = document.getElementById('routeType').value;
+            const nbVoiesGroup = document.getElementById('nbVoiesGroup');
+            if (routeType === 'pietons_seulement') {
+                nbVoiesGroup.style.display = 'none';
+            } else {
+                nbVoiesGroup.style.display = 'block';
+            }
+        }
+        
+        function updateCoordinates(lat, lng) {
+            document.getElementById('latitude').value = lat.toFixed(6);
+            document.getElementById('longitude').value = lng.toFixed(6);
+            document.getElementById('latitude').style.backgroundColor = '#e8f5e9';
+            document.getElementById('longitude').style.backgroundColor = '#e8f5e9';
+            document.getElementById('coordStatus').innerHTML = `✅ Position: ${lat.toFixed(4)}°, ${lng.toFixed(4)}°`;
+            document.getElementById('coordStatus').style.color = '#22c55e';
+        }
+        
+        function showTempMarker(lat, lng, mode) {
+            if (tempMarker) map.removeLayer(tempMarker);
+            const markerClass = mode === 'edit' ? 'edit-temp-marker' : 'temp-marker';
+            const iconHtml = mode === 'edit' 
+                ? '<div style="font-size: 28px; filter: drop-shadow(0 0 4px rgba(59,130,246,0.8));">📌</div>'
+                : '<div style="font-size: 28px; filter: drop-shadow(0 0 4px rgba(34,197,94,0.8));">📍</div>';
+            
+            tempMarker = L.marker([lat, lng], { draggable: true, icon: L.divIcon({ html: iconHtml, className: markerClass, iconSize: [28, 28], iconAnchor: [14, 28] }) }).addTo(map);
+            tempMarker.on('dragend', function() {
+                const newPos = tempMarker.getLatLng();
+                updateCoordinates(newPos.lat, newPos.lng);
+                showAlert('Position ajustée !', 'info');
+            });
+            const popupText = mode === 'edit' 
+                ? `<div class="text-center"><strong>✏️ Position modifiée</strong><br>Lat: ${lat.toFixed(6)}<br>Lng: ${lng.toFixed(6)}<br><button class="btn btn-sm btn-primary mt-2" onclick="document.getElementById('addForm').scrollIntoView({behavior:'smooth'});">✅ Valider la modification</button></div>`
+                : `<div class="text-center"><strong>📍 Nouvelle position</strong><br>Lat: ${lat.toFixed(6)}<br>Lng: ${lng.toFixed(6)}<br><button class="btn btn-sm btn-success mt-2" onclick="document.getElementById('addForm').scrollIntoView({behavior:'smooth'});">✅ Valider l'ajout</button></div>`;
+            tempMarker.bindPopup(popupText).openPopup();
+        }
+        
+        function enableAddMode() {
+            if (!currentUser) { window.location.href = '/login'; return; }
+            disableAllModes();
+            if (!addModal) addModal = new bootstrap.Modal(document.getElementById('addModal'));
+            document.getElementById('addForm').reset();
+            document.getElementById('pointId').value = '';
+            document.getElementById('latitude').value = '';
+            document.getElementById('longitude').value = '';
+            document.getElementById('latitude').style.backgroundColor = '';
+            document.getElementById('longitude').style.backgroundColor = '';
+            document.getElementById('coordStatus').innerHTML = '⚠️ Cliquez sur la carte pour sélectionner une position';
+            document.getElementById('coordStatus').style.color = '#f59e0b';
+            if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
+            addModeEnabled = true; editModeEnabled = false; currentEditingPointId = null;
+            document.getElementById('map').classList.add('add-mode-cursor');
+            document.getElementById('map').classList.remove('edit-mode-cursor');
+            const addBtn = document.getElementById('addBtn');
+            addBtn.classList.add('add-mode-active'); addBtn.style.background = '#16a34a';
+            document.getElementById('modalHeader').className = 'modal-header bg-success text-white';
+            document.querySelector('#addModal .modal-title').innerHTML = '<i class="fas fa-plus-circle"></i> Ajouter un lieu';
+            document.getElementById('coordModeAlert').innerHTML = '<i class="fas fa-map-marker-alt"></i> <strong>Mode ajout activé !</strong> Cliquez sur la carte pour placer le marqueur';
+            document.getElementById('coordModeAlert').className = 'alert alert-success small py-2 mb-2';
+            
+            document.getElementById('routeFields').style.display = 'none';
+            document.getElementById('pointCoords').style.display = 'block';
+            isRouteMode = false;
+            clearRoutePoints();
+            map.off('mousemove', onRouteMouseMove);
+            if (routeTempLine) { map.removeLayer(routeTempLine); routeTempLine = null; }
+            if (routeMouseMarker) { map.removeLayer(routeMouseMarker); routeMouseMarker = null; }
+            
+            document.getElementById('categorie').addEventListener('change', onCategorieChange);
+            document.getElementById('categorie').addEventListener('input', onCategorieChange);
+            
+            showAlert('🟢 Mode AJOUT activé ! Cliquez sur la carte pour placer votre point', 'success');
+            addModal.show();
+        }
+        
+        function onCategorieChange() {
+            const cat = document.getElementById('categorie').value;
+            if (cat === 'route') {
+                isRouteMode = true;
+                document.getElementById('routeFields').style.display = 'block';
+                document.getElementById('pointCoords').style.display = 'none';
+                document.getElementById('coordModeAlert').innerHTML = '<i class="fas fa-route"></i> <strong>Mode route activé</strong> Cliquez sur la carte pour ajouter des points (minimum 2)';
+                document.getElementById('coordModeAlert').className = 'alert alert-warning small py-2 mb-2';
+                clearRoutePoints();
+                updateNbVoiesVisibility();
+                document.getElementById('routeType').addEventListener('change', updateNbVoiesVisibility);
+                showAlert('🛤️ Mode route : cliquez sur la carte pour ajouter des points, double-cliquez pour terminer', 'success');
+            } else {
+                isRouteMode = false;
+                document.getElementById('routeFields').style.display = 'none';
+                document.getElementById('pointCoords').style.display = 'block';
+                document.getElementById('coordModeAlert').innerHTML = '<i class="fas fa-map-marker-alt"></i> <strong>Cliquez sur la carte</strong> pour sélectionner la position';
+                document.getElementById('coordModeAlert').className = 'alert alert-success small py-2 mb-2';
+                clearRoutePoints();
+                map.off('mousemove', onRouteMouseMove);
+                document.getElementById('routeType').removeEventListener('change', updateNbVoiesVisibility);
+            }
+        }
+        
+        function enableEditMode(pointId, lat, lng) {
+            if (!currentUser) { window.location.href = '/login'; return; }
+            disableAllModes();
+            if (!addModal) addModal = new bootstrap.Modal(document.getElementById('addModal'));
+            if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
+            addModeEnabled = false; editModeEnabled = true; currentEditingPointId = pointId;
+            updateCoordinates(lat, lng); showTempMarker(lat, lng, 'edit');
+            document.getElementById('map').classList.add('edit-mode-cursor');
+            document.getElementById('map').classList.remove('add-mode-cursor');
+            document.getElementById('modalHeader').className = 'modal-header bg-primary text-white';
+            document.querySelector('#addModal .modal-title').innerHTML = '<i class="fas fa-edit"></i> Modifier un lieu';
+            document.getElementById('coordModeAlert').innerHTML = '<i class="fas fa-map-marker-alt"></i> <strong>Mode modification activé !</strong> Cliquez sur la carte pour déplacer le point';
+            document.getElementById('coordModeAlert').className = 'alert alert-primary small py-2 mb-2';
+            document.getElementById('routeFields').style.display = 'none';
+            document.getElementById('pointCoords').style.display = 'block';
+            isRouteMode = false;
+            showAlert('🔵 Mode MODIFICATION activé ! Cliquez sur la carte pour déplacer le point', 'success');
+        }
+        
+        function disableAddMode() { addModeEnabled = false; document.getElementById('map').classList.remove('add-mode-cursor'); const addBtn = document.getElementById('addBtn'); addBtn.classList.remove('add-mode-active'); addBtn.style.background = '#22c55e'; }
+        function disableEditMode() { editModeEnabled = false; document.getElementById('map').classList.remove('edit-mode-cursor'); }
+        function disableAllModes() { 
+            disableAddMode(); 
+            disableEditMode(); 
+            if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; } 
+            currentEditingPointId = null;
+            isRouteMode = false;
+            clearRoutePoints();
+            map.off('mousemove', onRouteMouseMove);
+            if (routeTempLine) { map.removeLayer(routeTempLine); routeTempLine = null; }
+            if (routeMouseMarker) { map.removeLayer(routeMouseMarker); routeMouseMarker = null; }
+            document.getElementById('routeFields').style.display = 'none';
+            document.getElementById('pointCoords').style.display = 'block';
+            document.getElementById('categorie').removeEventListener('change', onCategorieChange);
+            document.getElementById('categorie').removeEventListener('input', onCategorieChange);
+            document.getElementById('routeType').removeEventListener('change', updateNbVoiesVisibility);
+        }
+        
+        function toggleSatellite() {
+            const btn = document.getElementById('satelliteBtn');
+            if (isSatelliteMode) {
+                map.removeLayer(currentLayer); currentLayer = tileLayers.standard; currentLayer.addTo(map);
+                isSatelliteMode = false; btn.classList.remove('satellite-active'); btn.style.background = ''; btn.style.color = '';
+                document.querySelectorAll('.marker-label').forEach(label => label.classList.remove('satellite'));
+                showAlert('Vue standard', 'info');
+            } else {
+                showAlert('Chargement de la vue satellite...', 'info');
+                map.removeLayer(currentLayer); currentLayer = tileLayers.satellite2; currentLayer.addTo(map);
+                let tileError = false;
+                currentLayer.on('tileerror', function() {
+                    if (!tileError) {
+                        tileError = true; map.removeLayer(currentLayer); currentLayer = tileLayers.satellite1; currentLayer.addTo(map);
+                        currentLayer.on('tileerror', function() {
+                            map.removeLayer(currentLayer); currentLayer = tileLayers.standard; currentLayer.addTo(map);
+                            isSatelliteMode = false; btn.classList.remove('satellite-active'); showAlert('Service satellite indisponible', 'warning');
+                        });
+                    }
+                });
+                isSatelliteMode = true; btn.classList.add('satellite-active'); btn.style.background = '#1e3a5f'; btn.style.color = 'white';
+                document.querySelectorAll('.marker-label').forEach(label => label.classList.add('satellite'));
+                showAlert('🛰️ Vue satellite activée', 'success');
+            }
+        }
+        
+        function createMarkerFromPoint(point) {
+            const iconData = icons[point.categorie] || icons.default;
+            const satelliteClass = isSatelliteMode ? 'satellite' : '';
+            const html = `<div class="marker-container"><div class="marker-icon" style="border-color: ${iconData.color};">${iconData.emoji}</div><div class="marker-label ${satelliteClass}">${escapeHtml(point.nom)}</div></div>`;
+            const customIcon = L.divIcon({ html: html, className: 'custom-marker', iconSize: [22, 30], popupAnchor: [0, -12] });
+            const marker = L.marker([point.latitude, point.longitude], { icon: customIcon });
+            marker.pointData = point;
+            marker.bindPopup(`
+                <div style="min-width:180px;">
+                    <strong>${escapeHtml(point.nom)}</strong><br>
+                    ${iconData.emoji} <span class="text-muted">${escapeHtml(point.categorie)}</span><br>
+                    ${point.adresse ? escapeHtml(point.adresse) + '<br>' : ''}
+                    <button class="btn btn-sm btn-primary mt-2 w-100" onclick="showLieuDetails(${point.id})">
+                        <i class="fas fa-info-circle"></i> Voir détails
+                    </button>
+                </div>
+            `);
+            return marker;
+        }
+        
+        function escapeHtml(text) { if (!text) return ''; const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
+        
+        async function loadPoints() {
+            try {
+                const response = await fetch('/api/points'); const points = await response.json();
+                Object.values(markers).forEach(m => { if(m && map) map.removeLayer(m); });
+                markers = {};
+                points.forEach(point => { const marker = createMarkerFromPoint(point); marker.addTo(map); markers[point.id] = marker; });
+            } catch(e) { console.error(e); }
+        }
+        
+        let routesLayer = null;
+        async function loadRoutes() {
+            try {
+                const response = await fetch('/api/routes');
+                const routes = await response.json();
+                if (!routesLayer) routesLayer = L.layerGroup().addTo(map);
+                routesLayer.clearLayers();
+
+                const styleMap = {
+                    'tous': { color: '#16a34a', dashArray: null },
+                    'sans_vehicule': { color: '#f97316', dashArray: '10, 6' },
+                    'pietons_seulement': { color: '#3b82f6', dashArray: '6, 8' }
+                };
+
+                routes.forEach(route => {
+                    const coords = JSON.parse(route.geometrie);
+                    const baseWeight = styleMap[route.type_acces] ? 4 : 4;
+                    const nbVoies = route.nombre_voies || 1;
+                    const weight = baseWeight + (nbVoies - 1) * 2;
+                    const style = {
+                        color: styleMap[route.type_acces]?.color || '#16a34a',
+                        weight: weight,
+                        opacity: 0.9,
+                        dashArray: styleMap[route.type_acces]?.dashArray || null,
+                        lineCap: 'round',
+                        lineJoin: 'round'
+                    };
+                    const polyline = L.polyline(coords, style).addTo(routesLayer);
+                    polyline.bindPopup(`
+                        <strong>${escapeHtml(route.nom)}</strong><br>
+                        Catégorie : ${escapeHtml(route.categorie || 'route')}<br>
+                        Accès : ${route.type_acces === 'tous' ? 'Tous (véhicules, motos, piétons)' :
+                                 route.type_acces === 'sans_vehicule' ? 'Sans véhicule (motos, piétons)' :
+                                 'Piétons seulement'}<br>
+                        Nb voies : ${route.nombre_voies || 1}<br>
+                        <button class="btn btn-sm btn-primary mt-2" onclick="showRouteDetails(${route.id})">Détails</button>
+                    `);
+                    polyline.routeId = route.id;
+                });
+
+                addRouteLegend();
+            } catch(e) {
+                console.error('Erreur chargement routes', e);
+            }
+        }
+
+        function addRouteLegend() {
+            const oldLegend = document.querySelector('.route-legend');
+            if (oldLegend) oldLegend.remove();
+
+            const legend = L.control({ position: 'bottomleft' });
+            legend.onAdd = function() {
+                const div = L.DomUtil.create('div', 'route-legend');
+                div.innerHTML = `
+                    <div><strong>Types de routes</strong></div>
+                    <div class="legend-item">
+                        <span class="legend-line" style="background:#16a34a;"></span> Tous (véhicules, motos, piétons)
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-line" style="background:#f97316;border-top:2px dashed #f97316;"></span> Sans véhicule (motos, piétons)
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-line" style="background:#3b82f6;border-top:2px dotted #3b82f6;"></span> Piétons seulement
+                    </div>
+                    <div class="legend-item" style="margin-top:4px; border-top:1px solid #ddd; padding-top:4px;">
+                        <span style="font-size:11px; color:#6c757d;">Épaisseur = base + (nb voies - 1) × 2</span>
+                    </div>
+                `;
+                return div;
+            };
+            legend.addTo(map);
+        }
+        
+        function showRouteDetails(routeId) {
+            showAlert('Fonctionnalité à venir : détails de la route', 'info');
+        }
+        
+        // ========== AMÉLIORATION DE LA PRÉCISION GPS ==========
+        function startLocationTracking() {
+            if (!navigator.geolocation) {
+                showAlert('Géolocalisation non supportée', 'danger');
+                return;
+            }
+
+            if (watchId) {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+            }
+
+            const options = {
+                enableHighAccuracy: true,
+                timeout: 20000,
+                maximumAge: 0
+            };
+
+            let accuracyAttempts = 0;
+            let lastAccuracy = Infinity;
+
+            function handlePosition(position) {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                const accuracy = position.coords.accuracy;
+
+                // Afficher la précision
+                showAlert(`📍 Précision : ${accuracy.toFixed(0)} m`, 'info');
+
+                // Si précision > 50m et moins de 3 tentatives, on relance une mesure ponctuelle
+                if (accuracy > 50 && accuracyAttempts < 3 && accuracy > lastAccuracy * 0.8) {
+                    accuracyAttempts++;
+                    navigator.geolocation.getCurrentPosition(
+                        (newPos) => {
+                            if (newPos.coords.accuracy < accuracy) {
+                                updateUserPosition(newPos.coords.latitude, newPos.coords.longitude);
+                                lastAccuracy = newPos.coords.accuracy;
+                            } else {
+                                updateUserPosition(lat, lng);
+                                lastAccuracy = accuracy;
+                            }
+                        },
+                        () => { updateUserPosition(lat, lng); lastAccuracy = accuracy; },
+                        { enableHighAccuracy: true, timeout: 10000 }
+                    );
+                    return;
+                }
+
+                // Sinon mise à jour normale
+                updateUserPosition(lat, lng);
+                lastAccuracy = accuracy;
+                accuracyAttempts = 0; // réinitialiser après une bonne mesure
+            }
+
+            function updateUserPosition(lat, lng) {
+                const iconOptions = {
+                    html: `<div class="location-marker-wrapper"><div class="location-pulse"></div><i class="fas fa-location-dot location-icon"></i></div>`,
+                    className: 'user-marker',
+                    iconSize: [40, 40],
+                    iconAnchor: [20, 20]
+                };
+
+                if (currentPositionMarker) {
+                    currentPositionMarker.setLatLng([lat, lng]);
+                    currentPositionMarker.setIcon(L.divIcon(iconOptions));
+                } else {
+                    currentPositionMarker = L.marker([lat, lng], { 
+                        icon: L.divIcon(iconOptions),
+                        zIndexOffset: 1000
+                    })
+                    .bindPopup('📍 Vous êtes ici')
+                    .addTo(map);
+                }
+
+                map.setView([lat, lng], Math.max(map.getZoom(), 15));
+
+                if (isSharing) {
+                    updateServerLocation(lat, lng, position.coords.speed || 0, position.coords.altitude || 0, position.coords.accuracy || 0);
+                }
+            }
+
+            watchId = navigator.geolocation.watchPosition(
+                handlePosition,
+                (error) => {
+                    console.error('Erreur GPS:', error);
+                    let message = 'Erreur de localisation: ';
+                    switch(error.code) {
+                        case 1: message += 'Permission refusée. Veuillez autoriser la géolocalisation.'; break;
+                        case 2: message += 'Position indisponible. Vérifiez votre connexion GPS.'; break;
+                        case 3: message += 'Délai d\'attente dépassé. Réessayez.'; break;
+                        default: message += error.message;
+                    }
+                    showAlert(message, 'warning');
+                    setTimeout(() => {
+                        if (watchId) {
+                            navigator.geolocation.clearWatch(watchId);
+                            watchId = null;
+                            startLocationTracking();
+                        }
+                    }, 5000);
+                },
+                options
+            );
+
+            document.getElementById('locationBtn').style.background = '#ff4444';
+            document.getElementById('locationBtn').style.color = 'white';
+            showAlert('📍 Localisation activée (haute précision)', 'success');
+        }
+        // =====================================================
+        
+        function stopLocationTracking() {
+            if (watchId) { 
+                navigator.geolocation.clearWatch(watchId); 
+                watchId = null; 
+            }
+            if (currentPositionMarker) { 
+                map.removeLayer(currentPositionMarker); 
+                currentPositionMarker = null; 
+            }
+            if (isSharing) { 
+                const toggle = document.getElementById('sharingToggle'); 
+                if (toggle && toggle.checked) {
+                    toggle.checked = false; 
+                    toggleSharing(); 
+                }
+            }
+            document.getElementById('locationBtn').style.background = 'white'; 
+            document.getElementById('locationBtn').style.color = '#2c3e50';
+            showAlert('Localisation désactivée', 'info');
+        }
+        
+        async function updateServerLocation(lat, lng, speed, altitude, accuracy) {
+            try {
+                await fetch('/api/update-location', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ latitude: lat, longitude: lng, mode: currentMode, speed: speed, altitude: altitude, accuracy: accuracy, is_sharing: isSharing ? 1 : 0 })
+                });
+            } catch(e) { console.error('Erreur mise à jour position', e); }
+        }
+        
+        function toggleSharing() {
+            const toggle = document.getElementById('sharingToggle'); 
+            const label = document.getElementById('sharingLabel');
+            if (!currentUser) { showAlert('Connectez-vous d\'abord', 'warning'); toggle.checked = false; return; }
+            if (!watchId) { showAlert('Activez d\'abord votre localisation', 'warning'); toggle.checked = false; return; }
+            
+            isSharing = toggle.checked;
+            if (isSharing) {
+                label.innerHTML = `Partage activé (${currentMode === 'car' ? 'véhicule' : currentMode === 'motorcycle' ? 'moto' : 'personne'}) ✅`;
+                label.style.color = '#22c55e'; generateShareCode();
+                document.getElementById('shareCodeSection').style.display = 'block'; 
+                document.getElementById('shareBtn').classList.add('sharing');
+                showAlert('Votre position est maintenant partagée !', 'success');
+            } else {
+                label.innerHTML = 'Partage désactivé ❌'; label.style.color = '#ef4444';
+                document.getElementById('shareCodeSection').style.display = 'none'; 
+                document.getElementById('shareBtn').classList.remove('sharing');
+                fetch('/api/stop-sharing', { method: 'POST' }); 
+                showAlert('Partage désactivé', 'info');
+            }
+        }
+        
+        async function generateShareCode() {
+            const response = await fetch('/api/generate-share-code', { method: 'POST' }); 
+            const data = await response.json();
+            shareCode = data.code; 
+            document.getElementById('shareCode').innerHTML = shareCode;
+            document.getElementById('qrcode').innerHTML = ''; 
+            new QRCode(document.getElementById('qrcode'), { text: shareCode, width: 100, height: 100 });
+        }
+        
+        function copyShareCode() { navigator.clipboard.writeText(shareCode); showAlert('Code copié !', 'success'); }
+        
+        // ========== SCAN QR CODE ==========
+        let html5QrCode = null;
+
+        function startQrScan() {
+            if (!html5QrCode) {
+                html5QrCode = new Html5Qrcode("reader");
+            }
+            // Créer un overlay pour la caméra
+            const scanDiv = document.createElement('div');
+            scanDiv.id = 'qrReader';
+            scanDiv.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; z-index:9999; background:rgba(0,0,0,0.9); display:flex; flex-direction:column; align-items:center; justify-content:center;';
+            scanDiv.innerHTML = `
+                <div style="width:300px; height:300px; background:white; border-radius:16px; overflow:hidden; position:relative;">
+                    <div id="reader" style="width:100%; height:100%;"></div>
+                </div>
+                <button class="btn btn-danger mt-3" onclick="stopQrScan()">Annuler</button>
+            `;
+            document.body.appendChild(scanDiv);
+
+            html5QrCode.start(
+                { facingMode: "environment" },
+                {
+                    fps: 10,
+                    qrbox: { width: 250, height: 250 }
+                },
+                (decodedText) => {
+                    stopQrScan();
+                    document.getElementById('searchPersonInput').value = decodedText;
+                    addPersonByCode();
+                },
+                (error) => {
+                    // Ignorer
+                }
+            ).catch(err => {
+                console.error(err);
+                showAlert('Erreur d\'accès à la caméra', 'danger');
+                stopQrScan();
+            });
+        }
+
+        function stopQrScan() {
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    const reader = document.getElementById('qrReader');
+                    if (reader) reader.remove();
+                }).catch(() => {});
+            } else {
+                const reader = document.getElementById('qrReader');
+                if (reader) reader.remove();
+            }
+        }
+        // ==================================
+        
+        async function loadActiveUsers() {
+            try {
+                const response = await fetch('/api/active-users');
+                if (!response.ok) { console.error('Erreur chargement utilisateurs'); return; }
+                const users = await response.json();
+                
+                let allUsers = [...users];
+                
+                for (let i = 0; i < sharedUsers.length; i++) {
+                    const shared = sharedUsers[i];
+                    try {
+                        const res = await fetch(`/api/share-code-location/${shared.code}`);
+                        if (res.ok) {
+                            const data = await res.json();
+                            const exists = allUsers.find(u => u.user_id === data.user_id);
+                            if (exists) {
+                                Object.assign(exists, data);
+                            } else {
+                                allUsers.push(data);
+                            }
+                            data.code = shared.code;
+                            sharedUsers[i] = data;
+                        } else {
+                            sharedUsers.splice(i, 1);
+                            i--;
+                        }
+                    } catch(e) {
+                        console.error('Erreur rafraîchissement utilisateur partagé', e);
+                    }
+                }
+                
+                activeUsers = allUsers;
+                updateUsersOnMap();
+                updatePeopleList();
+            } catch(e) { console.error('Erreur loadActiveUsers:', e); }
+        }
+        
+        function updateUsersOnMap() {
+            const currentUserId = currentUser ? currentUser.id : null;
+            const userRole = currentUser ? currentUser.role : null;
+            
+            let visibleUsers = [];
+            
+            if (userRole === 'admin' || userRole === 'admin_second') {
+                visibleUsers = activeUsers.filter(u => u.user_id !== currentUserId && u.is_sharing === 1);
+            } else {
+                visibleUsers = activeUsers.filter(u => sharedUsers.some(s => s.user_id === u.user_id));
+            }
+            
+            const activeIds = new Set();
+            visibleUsers.forEach(user => {
+                activeIds.add(user.user_id);
+                const iconHtml = modeIcons[user.mode] || '🚶';
+                const lastUpdate = new Date(user.last_update).toLocaleTimeString();
+                const sharingStatus = user.is_sharing === 1 ? '🟢 Partagé' : '🔴 Non partagé';
+                const popupContent = `
+                    <strong>${escapeHtml(user.username)}</strong><br>
+                    ${iconHtml} ${sharingStatus}<br>
+                    Dernière mise à jour: ${lastUpdate}<br>
+                    <button class="btn btn-sm btn-primary mt-1 w-100" onclick="showDirectionsToUser(${user.user_id}, ${user.latitude}, ${user.longitude})">
+                        <i class="fas fa-route"></i> Itinéraire
+                    </button>
+                    <button class="btn btn-sm btn-secondary mt-1 w-100" onclick="map.closePopup()">Fermer</button>
+                `;
+                if (otherUsersMarkers[user.user_id]) {
+                    const marker = otherUsersMarkers[user.user_id];
+                    marker.setLatLng([user.latitude, user.longitude]);
+                    marker.setPopupContent(popupContent);
+                } else {
+                    const customIcon = L.divIcon({ 
+                        html: `<div style="font-size: 20px; filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.25));">${iconHtml}</div>`, 
+                        className: 'other-user-marker', 
+                        iconSize: [24, 24], 
+                        popupAnchor: [0, -12] 
+                    });
+                    const marker = L.marker([user.latitude, user.longitude], { icon: customIcon });
+                    marker.bindPopup(popupContent);
+                    marker.addTo(map);
+                    otherUsersMarkers[user.user_id] = marker;
+                }
+            });
+            
+            Object.keys(otherUsersMarkers).forEach(id => {
+                if (!activeIds.has(parseInt(id))) {
+                    map.removeLayer(otherUsersMarkers[id]);
+                    delete otherUsersMarkers[id];
+                }
+            });
+        }
+
+        // ========== ITINÉRAIRE VERS UN UTILISATEUR ==========
+        function showDirectionsToUser(userId, lat, lng) {
+            if (!currentPositionMarker) {
+                showAlert('Activez votre localisation pour calculer un itinéraire.', 'warning');
+                map.setView([lat, lng], 16);
+                return;
+            }
+            const start = currentPositionMarker.getLatLng();
+            const url = `https://router.project-osrm.org/route/v1/driving/${start.lng},${start.lat};${lng},${lat}?overview=full&geometries=geojson`;
+
+            if (routePolyline) {
+                map.removeLayer(routePolyline);
+                routePolyline = null;
+            }
+
+            fetch(url)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.code !== 'Ok') {
+                        showAlert('Erreur de calcul d\'itinéraire', 'danger');
+                        return;
+                    }
+                    const coords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+                    routePolyline = L.polyline(coords, { color: '#ff4444', weight: 4, opacity: 0.8 }).addTo(map);
+                    map.fitBounds(routePolyline.getBounds(), { padding: [50, 50] });
+                    const distance = data.routes[0].distance / 1000;
+                    const duration = data.routes[0].duration / 60;
+                    const user = activeUsers.find(u => u.user_id === userId);
+                    showAlert(`🚗 Itinéraire vers ${user ? escapeHtml(user.username) : 'cet utilisateur'} : ${distance.toFixed(1)} km, ${Math.round(duration)} min`, 'success');
+                })
+                .catch(err => {
+                    console.error(err);
+                    showAlert('Erreur réseau lors du calcul d\'itinéraire', 'danger');
+                });
+        }
+        // ===================================================
+        
+        function updatePeopleList() {
+            const container = document.getElementById('peopleList');
+            const currentUserId = currentUser ? currentUser.id : null;
+            const userRole = currentUser ? currentUser.role : null;
+            
+            let filteredUsers = [];
+            
+            if (userRole === 'admin' || userRole === 'admin_second') {
+                filteredUsers = activeUsers.filter(u => u.user_id !== currentUserId && u.is_sharing === 1);
+            } else {
+                filteredUsers = activeUsers.filter(u => sharedUsers.some(s => s.user_id === u.user_id));
+            }
+            
+            if (filteredUsers.length === 0) {
+                let message = 'Aucune position visible';
+                if (userRole === 'contributeur') {
+                    message = 'Utilisez un code de partage pour voir la position d\'un utilisateur';
+                }
+                container.innerHTML = `<div class="text-muted text-center small">${message}</div>`;
+                return;
+            }
+            
+            container.innerHTML = filteredUsers.map(user => `
+                <div class="person-item" onclick="centerOnUser(${user.user_id}, ${user.latitude}, ${user.longitude})">
+                    <div style="font-size: 20px;">${modeIcons[user.mode] || '🚶'}</div>
+                    <div class="flex-grow-1"><strong>${escapeHtml(user.username)}</strong><div class="small person-online">🟢 En ligne</div></div>
+                    <div class="small text-muted">${new Date(user.last_update).toLocaleTimeString()}</div>
+                </div>
+            `).join('');
+        }
+        
+        async function addPersonByCode() {
+            const code = document.getElementById('searchPersonInput').value.trim();
+            if (!code) { showAlert('Entrez un code', 'warning'); return; }
+            try {
+                const response = await fetch(`/api/share-code-location/${code}`);
+                if (response.ok) {
+                    const user = await response.json(); 
+                    
+                    if (!user.is_sharing) {
+                        showAlert('Cet utilisateur a désactivé le partage de sa position', 'warning');
+                        return;
+                    }
+                    
+                    const existing = sharedUsers.find(u => u.user_id === user.user_id);
+                    if (existing) {
+                        Object.assign(existing, user);
+                        existing.code = code;
+                    } else {
+                        user.code = code;
+                        sharedUsers.push(user);
+                    }
+                    
+                    showAlert(`${user.username} ajouté(e) !`, 'success'); 
+                    centerOnUser(user.user_id, user.latitude, user.longitude); 
+                    document.getElementById('searchPersonInput').value = '';
+                    await loadActiveUsers();
+                } else { 
+                    const error = await response.json(); 
+                    showAlert(error.error || 'Code invalide', 'danger'); 
+                }
+            } catch(e) { showAlert('Erreur', 'danger'); }
+        }
+        
+        function centerOnUser(userId, lat, lng) { 
+            map.setView([lat, lng], 16); 
+            if (otherUsersMarkers[userId]) otherUsersMarkers[userId].openPopup(); 
+        }
+        
+        // --- Calcul d'itinéraire routier (pour un point) ---
+        function showDirections(lat, lng) {
+            if (!currentPositionMarker) {
+                showAlert('Activez votre localisation pour calculer un itinéraire.', 'warning');
+                map.setView([lat, lng], 16);
+                return;
+            }
+            const start = currentPositionMarker.getLatLng();
+            const url = `https://router.project-osrm.org/route/v1/driving/${start.lng},${start.lat};${lng},${lat}?overview=full&geometries=geojson`;
+            
+            if (routePolyline) {
+                map.removeLayer(routePolyline);
+                routePolyline = null;
+            }
+            
+            fetch(url)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.code !== 'Ok') {
+                        showAlert('Erreur de calcul d\'itinéraire', 'danger');
+                        return;
+                    }
+                    const coords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+                    routePolyline = L.polyline(coords, { color: '#ff4444', weight: 4, opacity: 0.8 }).addTo(map);
+                    map.fitBounds(routePolyline.getBounds(), { padding: [50, 50] });
+                    const distance = data.routes[0].distance / 1000;
+                    const duration = data.routes[0].duration / 60;
+                    showAlert(`🚗 Itinéraire : ${distance.toFixed(1)} km, ${Math.round(duration)} min`, 'success');
+                })
+                .catch(err => {
+                    console.error(err);
+                    showAlert('Erreur réseau lors du calcul d\'itinéraire', 'danger');
+                });
+        }
+        
+        // ---------- SOUMISSION ----------
+        async function submitPoint() {
+            if (!currentUser) { showAlert('Veuillez vous connecter', 'warning'); return; }
+            const pointId = document.getElementById('pointId').value;
+            const cat = document.getElementById('categorie').value;
+            
+            if (cat === 'route') {
+                const nom = document.getElementById('nom').value.trim();
+                const type_acces = document.getElementById('routeType').value;
+                const nombre_voies = parseInt(document.getElementById('routeNbVoies').value) || 1;
+                if (!nom) { showAlert('Veuillez saisir un nom', 'warning'); return; }
+                if (routePoints.length < 2) {
+                    showAlert('Tracez au moins deux points pour la route', 'warning');
+                    return;
+                }
+                const geometrie = routePoints.slice();
+                try {
+                    const response = await fetch('/api/routes', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            nom,
+                            type_acces,
+                            geometrie,
+                            categorie: 'route',
+                            nombre_voies: nombre_voies
+                        })
+                    });
+                    const result = await response.json();
+                    if (response.ok) {
+                        showAlert('Route ajoutée avec succès !', 'success');
+                        document.getElementById('addForm').reset();
+                        clearRoutePoints();
+                        disableAllModes();
+                        if (addModal) addModal.hide();
+                        loadRoutes();
+                    } else {
+                        showAlert(result.error || 'Erreur', 'danger');
+                    }
+                } catch(e) {
+                    showAlert('Erreur réseau', 'danger');
+                }
+                return;
+            }
+            
+            const lat = document.getElementById('latitude').value;
+            const lng = document.getElementById('longitude').value;
+            if (!lat || !lng) { showAlert('Cliquez sur la carte pour sélectionner une position', 'warning'); return; }
+            
+            const data = {
+                nom: document.getElementById('nom').value,
+                categorie: cat,
+                adresse: document.getElementById('adresse').value || '',
+                telephone: document.getElementById('telephone')?.value || '',
+                website: document.getElementById('website')?.value || '',
+                description: document.getElementById('description')?.value || '',
+                latitude: parseFloat(lat),
+                longitude: parseFloat(lng)
+            };
+            if (!data.nom || !data.categorie) { showAlert('Nom et catégorie obligatoires', 'warning'); return; }
+            
+            try {
+                const url = pointId ? `/api/points/${pointId}` : '/api/points';
+                const method = pointId ? 'PUT' : 'POST';
+                const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+                if (response.ok) {
+                    showAlert(pointId ? 'Lieu mis à jour!' : 'Lieu ajouté!', 'success');
+                    document.getElementById('addForm').reset(); document.getElementById('pointId').value = '';
+                    if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
+                    disableAllModes(); 
+                    if (addModal) addModal.hide(); 
+                    loadPoints();
+                } else { const result = await response.json(); showAlert(result.error || 'Échec', 'danger'); }
+            } catch(e) { showAlert('Erreur réseau', 'danger'); console.error(e); }
+        }
+        
+        // ---------- RECHERCHE ----------
+        async function searchLocation() {
+            const query = document.getElementById('searchInput').value; if (!query) return;
+            try {
+                const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ', Butembo')}&limit=4`);
+                const results = await resp.json(); const div = document.getElementById('searchResults');
+                if (results.length) {
+                    div.innerHTML = results.map(r => `<div style="padding: 10px; cursor: pointer; border-bottom: 1px solid #eee;" onclick="goToLocation(${r.lat}, ${r.lon}, '${r.display_name.replace(/'/g, "\\'")}')"><strong>${escapeHtml(r.display_name.split(',')[0])}</strong><br><small>${escapeHtml(r.display_name)}</small></div>`).join('');
+                    div.style.display = 'block';
+                } else { div.style.display = 'none'; showAlert('Aucun résultat', 'warning'); }
+            } catch(e) { console.error(e); }
+        }
+        
+        function goToLocation(lat, lng, name) { map.setView([lat, lng], 16); document.getElementById('searchResults').style.display = 'none'; if (window.tempSearchMarker) map.removeLayer(window.tempSearchMarker); window.tempSearchMarker = L.marker([lat, lng]).bindPopup(name.split(',')[0]).openPopup(); }
+        function toggleSharePanel() { document.getElementById('sharePanel').classList.toggle('active'); document.getElementById('peoplePanel').classList.remove('active'); }
+        function togglePeoplePanel() { document.getElementById('peoplePanel').classList.toggle('active'); document.getElementById('sharePanel').classList.remove('active'); }
+        function closePanels() { document.getElementById('sharePanel').classList.remove('active'); document.getElementById('peoplePanel').classList.remove('active'); }
+        function zoomIn() { map.zoomIn(); } function zoomOut() { map.zoomOut(); }
+        
+        function getCurrentUser() { const u = localStorage.getItem('user'); return u ? JSON.parse(u) : null; }
+        
+        function updateNav() {
+            currentUser = getCurrentUser();
+            const nav = document.getElementById('userNav');
+                
+            if (currentUser) {
+                setTheme(currentUser.role);
+            }
+                    
+            if (currentUser) {
+                let dashboardButton = '';
+                if (currentUser.role === 'contributeur') {
+                    dashboardButton = '<a href="/dashboard-contributeur" class="btn btn-sm btn-outline-info me-2" style="color:white;border-color:white;">Dashboard</a>';
+                }
+                const adminButton = (currentUser.role === 'admin' || currentUser.role === 'admin_second') ? '<a href="/admin" class="btn btn-sm btn-outline-danger me-2" style="color:white;border-color:white;">Admin</a>' : '';
+                nav.innerHTML = `${dashboardButton}${adminButton}<div class="dropdown"><button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" style="${currentUser.role === 'admin' || currentUser.role === 'admin_second' || currentUser.role === 'contributeur' ? 'color:white;border-color:white;' : ''}"><i class="fas fa-user-circle"></i> ${escapeHtml(currentUser.username)}</button><ul class="dropdown-menu dropdown-menu-end">${(currentUser.role === 'admin' || currentUser.role === 'admin_second') ? '<li><a class="dropdown-item" href="/admin">Admin</a></li><li><hr></li>' : ''}${currentUser.role === 'contributeur' ? '<li><a class="dropdown-item" href="/dashboard-contributeur">Dashboard</a></li><li><hr></li>' : ''}<li><a class="dropdown-item" href="/profile">👤 Profil</a></li><li><hr></li><li><a class="dropdown-item" href="#" onclick="logout()">Déconnexion</a></li></ul></div>`;
+            } else {
+                nav.innerHTML = `<a href="/login" class="btn btn-sm btn-primary">Connexion</a>`;
+            }
+        }
+        
+        function updateMode() {
+            currentMode = document.getElementById('modeSelect').value; 
+            showAlert(`Mode de localisation : ${currentMode === 'car' ? 'Véhicule' : currentMode === 'motorcycle' ? 'Moto' : 'Personne'}`, 'info');
+            if (currentPositionMarker) {
+                const iconOptions = currentMode === 'person' 
+                    ? { html: `<div class="location-marker-wrapper"><div class="location-pulse"></div><i class="fas fa-location-dot location-icon"></i></div>`, className: 'user-marker', iconSize: [40, 40], iconAnchor: [20, 20] }
+                    : { html: `<div style="font-size:24px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.2));">${modeIcons[currentMode]}</div>`, className: 'custom-marker', iconSize: [24, 24], iconAnchor: [12, 12] };
+                currentPositionMarker.setIcon(L.divIcon(iconOptions));
+            }
+            if (isSharing && currentPositionMarker) { 
+                const pos = currentPositionMarker.getLatLng(); 
+                updateServerLocation(pos.lat, pos.lng, 0, 0, 0); 
+            }
+        }
+        
+        async function logout() { 
+            if (watchId) stopLocationTracking(); 
+            if (refreshInterval) { clearInterval(refreshInterval); refreshInterval = null; }
+            await fetch('/api/logout', { method: 'POST' }); 
+            localStorage.removeItem('user'); 
+            currentUser = null;
+            sharedUsers = [];
+            activeUsers = [];
+            setTheme('contributeur');
+            updateNav(); 
+            showAlert('Déconnecté', 'info'); 
+            window.location.reload();
+        }
+        
+        function openEditModal(pointId) {
+            if (!currentUser) { window.location.href = '/login'; return; }
+            const marker = markers[pointId]; if (!marker || !marker.pointData) { showAlert('Point introuvable', 'warning'); return; }
+            const point = marker.pointData;
+            document.getElementById('pointId').value = point.id; 
+            document.getElementById('nom').value = point.nom; 
+            document.getElementById('categorie').value = point.categorie; 
+            document.getElementById('adresse').value = point.adresse || ''; 
+            document.getElementById('telephone').value = point.telephone || ''; 
+            document.getElementById('website').value = point.website || ''; 
+            document.getElementById('description').value = point.description || '';
+            document.getElementById('routeFields').style.display = 'none';
+            document.getElementById('pointCoords').style.display = 'block';
+            isRouteMode = false;
+            clearRoutePoints();
+            enableEditMode(pointId, point.latitude, point.longitude);
+            if (!addModal) addModal = new bootstrap.Modal(document.getElementById('addModal')); 
+            addModal.show();
+        }
+        
+        // ----- FICHE DÉTAILLÉE -----
+        function showLieuDetails(pointId) {
+            if (!lieuModal) lieuModal = new bootstrap.Modal(document.getElementById('lieuModal'));
+            const body = document.getElementById('lieuModalBody');
+            body.innerHTML = '<div class="text-center"><div class="spinner-border text-primary"></div></div>';
+            lieuModal.show();
+
+            fetch(`/api/points/${pointId}`)
+                .then(res => {
+                    if (!res.ok) throw new Error('Erreur chargement');
+                    return res.json();
+                })
+                .then(point => {
+                    const statusLabels = {
+                        'en_attente': 'En attente',
+                        'approuve': 'Approuvé ✅',
+                        'rejete': 'Rejeté ❌'
+                    };
+                    const statusBadge = {
+                        'en_attente': 'badge-pending',
+                        'approuve': 'badge-approved',
+                        'rejete': 'badge-rejected'
+                    };
+                    const isOwner = currentUser && currentUser.id === point.user_id;
+                    const isAdmin = currentUser && (currentUser.role === 'admin' || currentUser.role === 'admin_second');
+                    const canEdit = isOwner || isAdmin;
+                    const iconData = icons[point.categorie] || icons.default;
+
+                    let actionsHtml = '';
+                    if (canEdit) {
+                        actionsHtml += `<button class="btn btn-warning me-2" onclick="openEditModalFromDetail(${point.id})"><i class="fas fa-edit"></i> Modifier</button>`;
+                    }
+                    if (currentUser) {
+                        actionsHtml += `<button class="btn btn-outline-danger me-2" onclick="signalPoint(${point.id})"><i class="fas fa-flag"></i> Signaler</button>`;
+                    }
+                    actionsHtml += `<button class="btn btn-success me-2" onclick="shareLocation(${point.latitude}, ${point.longitude}, '${escapeHtml(point.nom)}')"><i class="fas fa-share-alt"></i> Partager</button>`;
+                    actionsHtml += `<button class="btn btn-info me-2" onclick="showDirections(${point.latitude}, ${point.longitude})"><i class="fas fa-directions"></i> Itinéraire</button>`;
+                    
+                    if (isAdmin && point.status === 'approuve') {
+                        actionsHtml += `<button class="btn btn-sm btn-success me-2" onclick="publishPointToGoogleMapsFromDetail(${point.id})">
+                            <i class="fab fa-google"></i> Publier sur Google Maps
+                        </button>`;
+                    }
+
+                    body.innerHTML = `
+                        <div class="row">
+                            <div class="col-md-8">
+                                <h4>${iconData.emoji} ${escapeHtml(point.nom)}</h4>
+                                <p><strong>Catégorie :</strong> ${iconData.emoji} ${escapeHtml(point.categorie)}</p>
+                                <p><strong>Adresse :</strong> ${escapeHtml(point.adresse || 'Non renseignée')}</p>
+                                <p><strong>Téléphone :</strong> ${escapeHtml(point.telephone || 'Non renseigné')}</p>
+                                <p><strong>Site web :</strong> ${point.website ? `<a href="${escapeHtml(point.website)}" target="_blank">${escapeHtml(point.website)}</a>` : 'Non renseigné'}</p>
+                                <p><strong>Description :</strong> ${escapeHtml(point.description || 'Aucune description')}</p>
+                                <p><strong>Coordonnées GPS :</strong> ${point.latitude.toFixed(6)}, ${point.longitude.toFixed(6)}</p>
+                                <p><strong>Statut :</strong> <span class="badge ${statusBadge[point.status]}">${statusLabels[point.status]}</span></p>
+                                ${point.validated_at ? `<p><strong>Validé le :</strong> ${formatDate(point.validated_at)}</p>` : ''}
+                            </div>
+                            <div class="col-md-4">
+                                <div id="miniMap" style="height:200px; border-radius:8px; border:1px solid #ddd;"></div>
+                                <small class="text-muted">Position approximative</small>
+                            </div>
+                        </div>
+                    `;
+                    document.getElementById('lieuModalFooter').innerHTML = actionsHtml + `<button class="btn btn-secondary" data-bs-dismiss="modal" onclick="disableAllModes()">Fermer</button>`;
+
+                    setTimeout(() => {
+                        const miniMap = L.map('miniMap').setView([point.latitude, point.longitude], 15);
+                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(miniMap);
+                        L.marker([point.latitude, point.longitude]).addTo(miniMap);
+                    }, 100);
+                })
+                .catch(err => {
+                    body.innerHTML = `<div class="alert alert-danger">Erreur : ${err.message}</div>`;
+                });
+        }
+
+        function publishPointToGoogleMapsFromDetail(pointId) {
+            fetch(`/api/points/${pointId}`)
+                .then(res => res.json())
+                .then(point => {
+                    const url = `https://www.google.com/maps?q=${point.latitude},${point.longitude}+(${encodeURIComponent(point.nom)})`;
+                    window.open(url, '_blank');
+                })
+                .catch(err => {
+                    showAlert('Erreur lors de la récupération des coordonnées', 'danger');
+                    console.error(err);
+                });
+        }
+
+        function openEditModalFromDetail(pointId) {
+            bootstrap.Modal.getInstance(document.getElementById('lieuModal')).hide();
+            openEditModal(pointId);
+        }
+
+        function signalPoint(pointId) {
+            const comment = prompt('Décrivez l\'erreur ou le problème (facultatif) :');
+            if (comment === null) return;
+            fetch('/api/signal-point', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ point_id: pointId, comment: comment || '' })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.message) showAlert(data.message, 'success');
+                else showAlert(data.error || 'Erreur', 'danger');
+            })
+            .catch(err => showAlert('Erreur réseau', 'danger'));
+        }
+
+        function shareLocation(lat, lng, nom) {
+            const url = `${window.location.origin}/?lat=${lat}&lng=${lng}`;
+            if (navigator.share) {
+                navigator.share({
+                    title: nom,
+                    text: `📍 ${nom}`,
+                    url: url
+                }).catch(() => {});
+            } else {
+                navigator.clipboard.writeText(url).then(() => {
+                    showAlert('Lien copié !', 'success');
+                }).catch(() => {
+                    showAlert(`Copiez ce lien : ${url}`, 'info');
+                });
+            }
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            try {
+                const date = new Date(dateStr);
+                return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+            } catch(e) {
+                return dateStr;
+            }
+        }
+
+        function showAlert(msg, type) { 
+            const c = document.getElementById('alertContainer'); 
+            if (!c) return; 
+            const a = document.createElement('div'); 
+            a.className = `alert-custom alert-${type}`; 
+            a.innerHTML = msg; 
+            c.appendChild(a); 
+            setTimeout(() => a.remove(), 3000); 
+        }
+        
+        // ----- DÉPLACEMENT DU MODAL (drag) -----
+        document.addEventListener('DOMContentLoaded', function() {
+            const modalDialog = document.querySelector('.modal-draggable');
+            const modalHeader = document.querySelector('#modalHeader');
+            let isDragging = false;
+            let offsetX, offsetY;
+
+            modalHeader.addEventListener('mousedown', function(e) {
+                if (e.target.closest('.btn-close')) return;
+                isDragging = true;
+                const rect = modalDialog.getBoundingClientRect();
+                offsetX = e.clientX - rect.left;
+                offsetY = e.clientY - rect.top;
+                modalDialog.style.transition = 'none';
+                document.body.style.userSelect = 'none';
+            });
+
+            document.addEventListener('mousemove', function(e) {
+                if (!isDragging) return;
+                let left = e.clientX - offsetX;
+                let top = e.clientY - offsetY;
+                modalDialog.style.left = left + 'px';
+                modalDialog.style.top = top + 'px';
+                modalDialog.style.transform = 'none';
+                modalDialog.style.margin = '0';
+            });
+
+            document.addEventListener('mouseup', function() {
+                if (isDragging) {
+                    isDragging = false;
+                    document.body.style.userSelect = '';
+                    modalDialog.style.transition = '';
+                }
+            });
+
+            document.getElementById('addModal').addEventListener('shown.bs.modal', function () {
+                document.getElementById('routeFields').style.display = 'none';
+                document.getElementById('pointCoords').style.display = 'block';
+                isRouteMode = false;
+                clearRoutePoints();
+            });
+
+            // Redimensionnement
+            const resizeHandle = document.querySelector('.modal-resize-handle');
+            if (resizeHandle) {
+                let isResizing = false;
+                let startX, startY, startWidth, startHeight;
+
+                resizeHandle.addEventListener('mousedown', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    isResizing = true;
+                    startX = e.clientX;
+                    startY = e.clientY;
+                    startWidth = modalDialog.offsetWidth;
+                    startHeight = modalDialog.offsetHeight;
+                    document.body.style.userSelect = 'none';
+                    document.body.style.cursor = 'nwse-resize';
+                });
+
+                document.addEventListener('mousemove', function(e) {
+                    if (!isResizing) return;
+                    const dx = e.clientX - startX;
+                    const dy = e.clientY - startY;
+                    let newWidth = startWidth + dx;
+                    let newHeight = startHeight + dy;
+                    const minWidth = 300;
+                    const maxWidth = window.innerWidth * 0.9;
+                    const minHeight = 300;
+                    const maxHeight = window.innerHeight * 0.9;
+                    newWidth = Math.min(Math.max(newWidth, minWidth), maxWidth);
+                    newHeight = Math.min(Math.max(newHeight, minHeight), maxHeight);
+                    modalDialog.style.width = newWidth + 'px';
+                    modalDialog.style.height = newHeight + 'px';
+                    modalDialog.style.maxWidth = 'none';
+                    modalDialog.style.maxHeight = 'none';
+                    modalDialog.style.transform = 'none';
+                });
+
+                document.addEventListener('mouseup', function() {
+                    if (isResizing) {
+                        isResizing = false;
+                        document.body.style.userSelect = '';
+                        document.body.style.cursor = '';
+                    }
+                });
+            }
+        });
+        
+        document.addEventListener('click', e => { 
+            if (!e.target.closest('.search-container')) document.getElementById('searchResults').style.display = 'none'; 
+        });
+        
+        updateNav(); 
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            initMap();
+        });
+        
+        // Expositions globales
+        window.submitPoint = submitPoint; 
+        window.logout = logout; 
+        window.enableAddMode = enableAddMode; 
+        window.openEditModal = openEditModal; 
+        window.searchLocation = searchLocation; 
+        window.goToLocation = goToLocation; 
+        window.zoomIn = zoomIn; 
+        window.zoomOut = zoomOut; 
+        window.showDirections = showDirections; 
+        window.toggleLocation = toggleLocation; 
+        window.toggleSharePanel = toggleSharePanel; 
+        window.togglePeoplePanel = togglePeoplePanel; 
+        window.toggleSharing = toggleSharing; 
+        window.addPersonByCode = addPersonByCode; 
+        window.centerOnUser = centerOnUser; 
+        window.copyShareCode = copyShareCode; 
+        window.toggleSatellite = toggleSatellite; 
+        window.disableAllModes = disableAllModes;
+        window.updateMode = updateMode;
+        window.showLieuDetails = showLieuDetails;
+        window.openEditModalFromDetail = openEditModalFromDetail;
+        window.signalPoint = signalPoint;
+        window.shareLocation = shareLocation;
+        window.clearRoutePoints = clearRoutePoints;
+        window.undoRoutePoint = undoRoutePoint;
+        window.publishPointToGoogleMapsFromDetail = publishPointToGoogleMapsFromDetail;
+        window.showDirectionsToUser = showDirectionsToUser;
+        window.startQrScan = startQrScan;
+        window.stopQrScan = stopQrScan;
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch(err => console.error('Erreur PWA:', err));
+            });
+        }
+    </script>
+</body>
+</html>

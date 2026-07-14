@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connexion - Butembo Mapper</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#667eea">
+
+    <style>
+        body { 
+            min-height: 100vh; 
+            transition: background 0.5s ease;
+        }
+        .card { border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); border: none; }
+        .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+        #alertContainer { position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 280px; }
+        .alert-custom {
+            background: white;
+            border-radius: 10px;
+            padding: 12px 20px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        .theme-contributeur {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .theme-admin {
+            background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);
+        }
+        .theme-admin_second {
+            background: linear-gradient(135deg, #2980b9 0%, #3498db 100%);
+        }
+        
+        .theme-contributeur .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .theme-admin .btn-primary {
+            background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);
+        }
+        .theme-admin_second .btn-primary {
+            background: linear-gradient(135deg, #2980b9 0%, #3498db 100%);
+        }
+    </style>
+</head>
+<body class="theme-contributeur">
+    <div class="container">
+        <div class="row justify-content-center mt-5">
+            <div class="col-md-5">
+                <div class="card">
+                    <div class="card-body p-5">
+                        <h3 class="text-center mb-4">
+                            <i class="fas fa-map-marker-alt text-primary"></i> Butembo Mapper
+                        </h3>
+                        
+                        <ul class="nav nav-tabs mb-4" id="authTab">
+                            <li class="nav-item">
+                                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#login">Connexion</button>
+                            </li>
+                            <li class="nav-item">
+                                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#register">Inscription</button>
+                            </li>
+                        </ul>
+                        
+                        <div class="tab-content">
+                            <div class="tab-pane fade show active" id="login">
+                                <form id="loginForm">
+                                    <div class="mb-3">
+                                        <label>Nom d'utilisateur ou Email</label>
+                                        <input type="text" id="loginUsername" class="form-control" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label>Mot de passe</label>
+                                        <input type="password" id="loginPassword" class="form-control" required>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary w-100 py-2">
+                                        <i class="fas fa-sign-in-alt"></i> Se connecter
+                                    </button>
+                                    <div class="mt-2 text-center">
+                                        <a href="/request-reset" class="text-muted small">Mot de passe oublié ?</a>
+                                    </div>
+                                </form>
+                            </div>
+                            
+                            <div class="tab-pane fade" id="register">
+                                <form id="registerForm">
+                                    <div class="mb-3">
+                                        <label>Nom d'utilisateur</label>
+                                        <input type="text" id="regUsername" class="form-control" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label>Email</label>
+                                        <input type="email" id="regEmail" class="form-control" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label>Profil</label>
+                                        <select id="regRole" class="form-select" required>
+                                            <option value="contributeur">Contributeur</option>
+                                            <option id="adminOption" value="admin">Administrateur</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label>Mot de passe</label>
+                                        <input type="password" id="regPassword" class="form-control" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label>Confirmer le mot de passe</label>
+                                        <input type="password" id="regConfirmPassword" class="form-control" required>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary w-100 py-2">
+                                        <i class="fas fa-user-plus"></i> S'inscrire
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="alertContainer"></div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function showAlert(message, type) {
+            const container = document.getElementById('alertContainer');
+            const alert = document.createElement('div');
+            alert.className = `alert-custom alert-${type}`;
+            alert.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} text-${type === 'success' ? 'success' : 'danger'}"></i> ${message}`;
+            container.appendChild(alert);
+            setTimeout(() => alert.remove(), 4000);
+        }
+        
+        function setTheme(role) {
+            const body = document.body;
+            body.className = '';
+            if (role === 'admin' || role === 'admin_second') {
+                body.classList.add(`theme-${role}`);
+            } else {
+                body.classList.add('theme-contributeur');
+            }
+        }
+        
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const password = document.getElementById('regPassword').value;
+            const confirm = document.getElementById('regConfirmPassword').value;
+            if (password !== confirm) {
+                showAlert('Les mots de passe ne correspondent pas', 'danger');
+                return;
+            }
+            const data = {
+                username: document.getElementById('regUsername').value,
+                email: document.getElementById('regEmail').value,
+                role: document.getElementById('regRole').value,
+                password: password
+            };
+            try {
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    showAlert(result.message, 'success');
+                    document.getElementById('registerForm').reset();
+                    document.querySelector('[data-bs-target="#login"]').click();
+                } else {
+                    showAlert(result.error, 'danger');
+                }
+            } catch (error) { showAlert('Erreur de connexion', 'danger'); }
+        });
+        
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                username: document.getElementById('loginUsername').value,
+                password: document.getElementById('loginPassword').value
+            };
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    localStorage.setItem('user', JSON.stringify(result.user));
+                    showAlert('Connexion réussie ! Redirection...', 'success');
+                    
+                    setTheme(result.user.role);
+                    
+                    setTimeout(() => {
+                        if (result.user.role === 'admin' || result.user.role === 'admin_second') {
+                            window.location.href = '/admin';
+                        } else if (result.user.role === 'contributeur') {
+                            window.location.href = '/dashboard-contributeur';
+                        } else {
+                            window.location.href = '/';
+                        }
+                    }, 800);
+                } else {
+                    showAlert(result.error, 'danger');
+                }
+            } catch (error) { showAlert('Erreur de connexion', 'danger'); }
+        });
+
+        async function checkAdminStatus() {
+            try {
+                const response = await fetch('/api/admin/exists');
+                const data = await response.json();
+                if (data.admin_exists) {
+                    const adminOption = document.getElementById('adminOption');
+                    if (adminOption) adminOption.remove();
+                }
+            } catch(e) {
+                console.error('Erreur vérification admin:', e);
+            }
+        }
+        checkAdminStatus();
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch(err => console.error('Erreur PWA:', err));
+            });
+        }
+    </script>
+</body>
+</html>

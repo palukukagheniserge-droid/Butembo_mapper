@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mon profil - Butembo Mapper</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { min-height: 100vh; background: #f0f2f5; }
+        .card { border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); border: none; }
+        #alertContainer { position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 280px; }
+        .alert-custom { background: white; border-radius: 10px; padding: 12px 20px; margin-bottom: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); animation: slideIn 0.3s ease-out; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    </style>
+</head>
+<body>
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body p-5">
+                        <h3 class="text-center mb-4"><i class="fas fa-user-circle text-primary"></i> Mon profil</h3>
+                        <form id="profileForm">
+                            <div class="mb-3">
+                                <label>Nom d'utilisateur (identifiant)</label>
+                                <input type="text" id="username" class="form-control" disabled>
+                            </div>
+                            <div class="mb-3">
+                                <label>Pseudo (affiché)</label>
+                                <input type="text" id="displayName" class="form-control" required>
+                            </div>
+                            <hr>
+                            <h6 class="mb-3">Changer le mot de passe</h6>
+                            <div class="mb-3">
+                                <label>Mot de passe actuel</label>
+                                <input type="password" id="currentPassword" class="form-control">
+                            </div>
+                            <div class="mb-3">
+                                <label>Nouveau mot de passe</label>
+                                <input type="password" id="newPassword" class="form-control">
+                            </div>
+                            <div class="mb-3">
+                                <label>Confirmer le nouveau mot de passe</label>
+                                <input type="password" id="confirmPassword" class="form-control">
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100 py-2">
+                                <i class="fas fa-save"></i> Mettre à jour
+                            </button>
+                            <div class="mt-3 text-center">
+                                <a href="/" class="text-muted small"><i class="fas fa-arrow-left"></i> Retour à l'accueil</a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="alertContainer"></div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function showAlert(message, type) {
+            const container = document.getElementById('alertContainer');
+            const alert = document.createElement('div');
+            alert.className = `alert-custom alert-${type}`;
+            alert.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} text-${type === 'success' ? 'success' : 'danger'}"></i> ${message}`;
+            container.appendChild(alert);
+            setTimeout(() => alert.remove(), 5000);
+        }
+
+        async function loadProfile() {
+            try {
+                const response = await fetch('/api/profile');
+                if (!response.ok) {
+                    if (response.status === 401) window.location.href = '/login';
+                    throw new Error('Non authentifié');
+                }
+                const user = await response.json();
+                document.getElementById('username').value = user.username;
+                document.getElementById('displayName').value = user.display_name || '';
+            } catch (e) {
+                showAlert('Erreur chargement du profil', 'danger');
+                console.error(e);
+            }
+        }
+
+        document.getElementById('profileForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const displayName = document.getElementById('displayName').value.trim();
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            if (newPassword && newPassword !== confirmPassword) {
+                showAlert('Les mots de passe ne correspondent pas', 'danger');
+                return;
+            }
+
+            const payload = { display_name: displayName };
+            if (currentPassword && newPassword) {
+                payload.current_password = currentPassword;
+                payload.new_password = newPassword;
+            }
+
+            try {
+                const response = await fetch('/api/profile', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    showAlert(result.message, 'success');
+                    const user = JSON.parse(localStorage.getItem('user') || '{}');
+                    user.display_name = displayName;
+                    localStorage.setItem('user', JSON.stringify(user));
+                    document.getElementById('currentPassword').value = '';
+                    document.getElementById('newPassword').value = '';
+                    document.getElementById('confirmPassword').value = '';
+                } else {
+                    showAlert(result.error, 'danger');
+                }
+            } catch (e) {
+                showAlert('Erreur réseau', 'danger');
+                console.error(e);
+            }
+        });
+
+        loadProfile();
+    </script>
+</body>
+</html>

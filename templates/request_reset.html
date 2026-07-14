@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Réinitialisation - Butembo Mapper</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { min-height: 100vh; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .card { border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); border: none; }
+        #alertContainer { position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 280px; }
+        .alert-custom { background: white; border-radius: 10px; padding: 12px 20px; margin-bottom: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); animation: slideIn 0.3s ease-out; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row justify-content-center mt-5">
+            <div class="col-md-5">
+                <div class="card">
+                    <div class="card-body p-5">
+                        <h4 class="text-center mb-4"><i class="fas fa-key text-primary"></i> Réinitialisation</h4>
+                        <p class="text-muted text-center small">Entrez votre email pour recevoir un lien de réinitialisation.</p>
+                        <form id="resetRequestForm">
+                            <div class="mb-3">
+                                <label>Email</label>
+                                <input type="email" id="resetEmail" class="form-control" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100 py-2">
+                                <i class="fas fa-paper-plane"></i> Envoyer
+                            </button>
+                            <div class="mt-3 text-center">
+                                <a href="/login" class="text-muted small">Retour à la connexion</a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="alertContainer"></div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function showAlert(msg, type) {
+            const container = document.getElementById('alertContainer');
+            const alert = document.createElement('div');
+            alert.className = `alert-custom alert-${type}`;
+            alert.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} text-${type === 'success' ? 'success' : 'danger'}"></i> ${msg}`;
+            container.appendChild(alert);
+            setTimeout(() => alert.remove(), 5000);
+        }
+        document.getElementById('resetRequestForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('resetEmail').value;
+            try {
+                const response = await fetch('/api/request-password-reset', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    showAlert(result.message, 'success');
+                    document.getElementById('resetRequestForm').reset();
+                } else {
+                    showAlert(result.error || 'Erreur', 'danger');
+                }
+            } catch (error) {
+                showAlert('Erreur de connexion', 'danger');
+            }
+        });
+    </script>
+</body>
+</html>

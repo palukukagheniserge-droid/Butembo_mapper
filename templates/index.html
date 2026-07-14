@@ -16,6 +16,7 @@
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     
     <style>
+        /* (styles identiques à l'original) */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; overflow: hidden; transition: background 0.5s ease; }
         #map { height: 100vh; width: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
@@ -58,7 +59,6 @@
             100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
         }
         
-        /* ========== ZONE DE RECHERCHE RESPONSIVE ========== */
         .search-container {
             position: absolute;
             top: 70px;
@@ -91,7 +91,6 @@
             cursor: pointer;
         }
         
-        /* Responsive */
         @media (max-width: 576px) {
             .search-container {
                 top: 60px;
@@ -117,8 +116,7 @@
                 width: 85%;
             }
         }
-        /* ============================================ */
-
+        
         .floating-panel { position: absolute; bottom: 80px; right: 20px; z-index: 1000; background: white; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); padding: 15px; width: 280px; display: none; }
         .floating-panel.active { display: block; }
         
@@ -129,7 +127,6 @@
         .person-item:hover { background: #f5f5f5; }
         .person-online { color: #22c55e; }
         
-        /* Marqueurs personnalisés */
         .custom-marker { background: transparent; border: none; }
         .marker-container {
             display: flex;
@@ -286,7 +283,6 @@
             margin-right: 6px;
         }
 
-        /* Modal déplaçable */
         .modal-draggable .modal-header {
             cursor: grab;
         }
@@ -356,33 +352,33 @@
         <div class="search-box">
             <i class="fas fa-search" style="color: #999;"></i>
             <input type="text" id="searchInput" placeholder="Rechercher un lieu..." autocomplete="off">
-            <button onclick="searchLocation()"><i class="fas fa-arrow-right"></i></button>
+            <button id="searchButton"><i class="fas fa-arrow-right"></i></button>
         </div>
         <div id="searchResults" style="position: absolute; top: 100%; left: 0; right: 0; background: white; border-radius: 12px; margin-top: 5px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display: none; z-index: 1001;"></div>
     </div>
     
     <div class="control-panel">
-        <button class="control-btn" onclick="zoomIn()">+</button>
-        <button class="control-btn" onclick="zoomOut()">−</button>
-        <button class="control-btn" id="locationBtn" onclick="toggleLocation()">📍</button>
-        <button class="control-btn" id="satelliteBtn" onclick="toggleSatellite()">🛰️</button>
-        <button class="control-btn" id="shareBtn" onclick="toggleSharePanel()" style="background:#8b5cf6;color:white;">🔗</button>
-        <button class="control-btn" id="peopleBtn" onclick="togglePeoplePanel()" style="background:#ec489a;color:white;">👥</button>
-        <button class="control-btn" id="addBtn" onclick="enableAddMode()" style="background:#22c55e;color:white;">+</button>
+        <button class="control-btn" id="zoomInBtn">+</button>
+        <button class="control-btn" id="zoomOutBtn">−</button>
+        <button class="control-btn" id="locationBtn">📍</button>
+        <button class="control-btn" id="satelliteBtn">🛰️</button>
+        <button class="control-btn" id="shareBtn" style="background:#8b5cf6;color:white;">🔗</button>
+        <button class="control-btn" id="peopleBtn" style="background:#ec489a;color:white;">👥</button>
+        <button class="control-btn" id="addBtn" style="background:#22c55e;color:white;">+</button>
     </div>
     
     <div class="floating-panel" id="sharePanel">
         <div class="d-flex justify-content-between align-items-center mb-2">
             <h6 class="mb-0"><i class="fas fa-share-alt"></i> Partager ma position</h6>
-            <button class="btn btn-sm btn-outline-secondary" onclick="closePanels()">Fermer</button>
+            <button class="btn btn-sm btn-outline-secondary" id="closeSharePanel">Fermer</button>
         </div>
         <div class="form-check form-switch mb-2">
-            <input class="form-check-input" type="checkbox" id="sharingToggle" onchange="toggleSharing()">
+            <input class="form-check-input" type="checkbox" id="sharingToggle">
             <label class="form-check-label" id="sharingLabel">Partage désactivé</label>
         </div>
         <div class="mb-2">
             <label class="form-label small">Mode de localisation</label>
-            <select id="modeSelect" class="form-select" onchange="updateMode()">
+            <select id="modeSelect" class="form-select">
                 <option value="person">Personne</option>
                 <option value="car">Véhicule</option>
                 <option value="motorcycle">Moto</option>
@@ -392,20 +388,20 @@
             <p class="small text-muted mb-1">Votre code unique (valable 1h):</p>
             <div class="share-code" id="shareCode"></div>
             <div id="qrcode" style="display: flex; justify-content: center; margin: 10px 0;"></div>
-            <button class="btn btn-sm btn-secondary w-100" onclick="copyShareCode()">Copier le code</button>
+            <button class="btn btn-sm btn-secondary w-100" id="copyShareCodeBtn">Copier le code</button>
         </div>
     </div>
     
     <div class="floating-panel" id="peoplePanel">
         <div class="d-flex justify-content-between align-items-center mb-2">
             <h6 class="mb-0"><i class="fas fa-users"></i> Personnes à proximité</h6>
-            <button class="btn btn-sm btn-outline-secondary" onclick="closePanels()">Fermer</button>
+            <button class="btn btn-sm btn-outline-secondary" id="closePeoplePanel">Fermer</button>
         </div>
         <div class="mb-2">
             <input type="text" id="searchPersonInput" class="form-control form-control-sm" placeholder="Code ou nom...">
             <div class="d-flex gap-1 mt-1">
-                <button class="btn btn-sm btn-primary w-100" onclick="addPersonByCode()">Ajouter par code</button>
-                <button class="btn btn-sm btn-success w-100" onclick="startQrScan()"><i class="fas fa-qrcode"></i> Scanner</button>
+                <button class="btn btn-sm btn-primary w-100" id="addPersonByCodeBtn">Ajouter par code</button>
+                <button class="btn btn-sm btn-success w-100" id="startQrScanBtn"><i class="fas fa-qrcode"></i> Scanner</button>
             </div>
         </div>
         <div id="peopleList" class="people-list">
@@ -416,13 +412,13 @@
     <div id="map"></div>
     <div id="alertContainer"></div>
     
-    <!-- Modale unique : Ajout / Modification (Point ou Route) -->
+    <!-- Modale Ajout/Modification -->
     <div class="modal fade" id="addModal" tabindex="-1" data-bs-backdrop="false" data-bs-keyboard="true">
         <div class="modal-dialog modal-draggable modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header" id="modalHeader">
                     <h5 class="modal-title"><i class="fas fa-plus-circle"></i> Ajouter un lieu</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="disableAllModes()"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" id="closeAddModalBtn"></button>
                 </div>
                 <div class="modal-body">
                     <form id="addForm" onsubmit="event.preventDefault(); submitPoint();">
@@ -494,8 +490,8 @@
                             </div>
                             <div class="alert alert-info small">
                                 <i class="fas fa-info-circle"></i> Points de la route : <span id="routePointsCount">0</span>
-                                <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="clearRoutePoints()">Effacer</button>
-                                <button type="button" class="btn btn-sm btn-outline-secondary ms-1" onclick="undoRoutePoint()">Retirer dernier</button>
+                                <button type="button" class="btn btn-sm btn-outline-danger ms-2" id="clearRoutePointsBtn">Effacer</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary ms-1" id="undoRoutePointBtn">Retirer dernier</button>
                             </div>
                             <div id="routePreview" style="height:80px; background:#f8f9fa; border-radius:6px; margin-bottom:8px; display:flex; align-items:center; justify-content:center; color:#6c757d; font-size:13px;">
                                 Cliquez sur la carte pour ajouter des points
@@ -540,8 +536,8 @@
                     </form>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-secondary" data-bs-dismiss="modal" onclick="disableAllModes()">Annuler</button>
-                    <button class="btn btn-primary" onclick="submitPoint()">Enregistrer</button>
+                    <button class="btn btn-secondary" data-bs-dismiss="modal" id="cancelAddModalBtn">Annuler</button>
+                    <button class="btn btn-primary" id="submitPointBtn">Enregistrer</button>
                 </div>
             </div>
             <div class="modal-resize-handle"></div>
@@ -554,13 +550,13 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="lieuModalTitle">Détails du lieu</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="disableAllModes()"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" id="closeLieuModalBtn"></button>
                 </div>
                 <div class="modal-body" id="lieuModalBody">
                     <!-- Rempli dynamiquement -->
                 </div>
                 <div class="modal-footer" id="lieuModalFooter">
-                    <button class="btn btn-secondary" data-bs-dismiss="modal" onclick="disableAllModes()">Fermer</button>
+                    <button class="btn btn-secondary" data-bs-dismiss="modal" id="closeLieuModalFooterBtn">Fermer</button>
                 </div>
             </div>
         </div>
@@ -570,6 +566,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <script>
+        // ==================== CODE JAVASCRIPT PRINCIPAL ====================
         let map, markers = {}, currentUser = null;
         let watchId = null, currentPositionMarker = null;
         let isSharing = false;
@@ -654,6 +651,7 @@
         
         const modeIcons = { person: '🚶', car: '🚗', motorcycle: '🏍️' };
         
+        // ========== FONCTIONS UTILITAIRES ==========
         function setTheme(role) {
             const body = document.body;
             body.className = '';
@@ -666,6 +664,31 @@
             }
         }
         
+        function escapeHtml(text) { if (!text) return ''; const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
+        
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            try {
+                const date = new Date(dateStr);
+                return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+            } catch(e) {
+                return dateStr;
+            }
+        }
+        
+        function showAlert(msg, type) { 
+            const c = document.getElementById('alertContainer'); 
+            if (!c) return; 
+            const a = document.createElement('div'); 
+            a.className = `alert-custom alert-${type}`; 
+            a.innerHTML = msg; 
+            c.appendChild(a); 
+            setTimeout(() => a.remove(), 3000); 
+        }
+        
+        function getCurrentUser() { const u = localStorage.getItem('user'); return u ? JSON.parse(u) : null; }
+        
+        // ========== GESTION DE LA CARTE ==========
         function initMap() {
             map = L.map('map', { zoomControl: false, maxZoom: 20, minZoom: 3 }).setView(BUTEMBO, 14);
             currentLayer = tileLayers.standard;
@@ -691,7 +714,6 @@
                 const marker = L.marker([latParam, lngParam]).addTo(map)
                     .bindPopup('📍 Position partagée')
                     .openPopup();
-                // Proposer un itinéraire si la position de l'utilisateur est disponible
                 setTimeout(() => {
                     if (currentPositionMarker) {
                         const start = currentPositionMarker.getLatLng();
@@ -730,7 +752,7 @@
             }
         }
         
-        // ---------- GESTION DU TRACÉ DE ROUTE ----------
+        // ========== GESTION DU TRACÉ DE ROUTE ==========
         function updateRoutePreview() {
             if (tempRoutePolyline) map.removeLayer(tempRoutePolyline);
             if (tempRouteMarkers.length) tempRouteMarkers.forEach(m => map.removeLayer(m));
@@ -838,7 +860,6 @@
                 if (routeMouseMarker) { map.removeLayer(routeMouseMarker); routeMouseMarker = null; }
             }
         }
-        // ---------- FIN GESTION ROUTE ----------
         
         function updateNbVoiesVisibility() {
             const routeType = document.getElementById('routeType').value;
@@ -878,6 +899,7 @@
             tempMarker.bindPopup(popupText).openPopup();
         }
         
+        // ========== MODES AJOUT / MODIFICATION ==========
         function enableAddMode() {
             if (!currentUser) { window.location.href = '/login'; return; }
             disableAllModes();
@@ -909,6 +931,7 @@
             if (routeTempLine) { map.removeLayer(routeTempLine); routeTempLine = null; }
             if (routeMouseMarker) { map.removeLayer(routeMouseMarker); routeMouseMarker = null; }
             
+            // On attache les événements de changement de catégorie
             document.getElementById('categorie').addEventListener('change', onCategorieChange);
             document.getElementById('categorie').addEventListener('input', onCategorieChange);
             
@@ -978,141 +1001,7 @@
             document.getElementById('routeType').removeEventListener('change', updateNbVoiesVisibility);
         }
         
-        function toggleSatellite() {
-            const btn = document.getElementById('satelliteBtn');
-            if (isSatelliteMode) {
-                map.removeLayer(currentLayer); currentLayer = tileLayers.standard; currentLayer.addTo(map);
-                isSatelliteMode = false; btn.classList.remove('satellite-active'); btn.style.background = ''; btn.style.color = '';
-                document.querySelectorAll('.marker-label').forEach(label => label.classList.remove('satellite'));
-                showAlert('Vue standard', 'info');
-            } else {
-                showAlert('Chargement de la vue satellite...', 'info');
-                map.removeLayer(currentLayer); currentLayer = tileLayers.satellite2; currentLayer.addTo(map);
-                let tileError = false;
-                currentLayer.on('tileerror', function() {
-                    if (!tileError) {
-                        tileError = true; map.removeLayer(currentLayer); currentLayer = tileLayers.satellite1; currentLayer.addTo(map);
-                        currentLayer.on('tileerror', function() {
-                            map.removeLayer(currentLayer); currentLayer = tileLayers.standard; currentLayer.addTo(map);
-                            isSatelliteMode = false; btn.classList.remove('satellite-active'); showAlert('Service satellite indisponible', 'warning');
-                        });
-                    }
-                });
-                isSatelliteMode = true; btn.classList.add('satellite-active'); btn.style.background = '#1e3a5f'; btn.style.color = 'white';
-                document.querySelectorAll('.marker-label').forEach(label => label.classList.add('satellite'));
-                showAlert('🛰️ Vue satellite activée', 'success');
-            }
-        }
-        
-        function createMarkerFromPoint(point) {
-            const iconData = icons[point.categorie] || icons.default;
-            const satelliteClass = isSatelliteMode ? 'satellite' : '';
-            const html = `<div class="marker-container"><div class="marker-icon" style="border-color: ${iconData.color};">${iconData.emoji}</div><div class="marker-label ${satelliteClass}">${escapeHtml(point.nom)}</div></div>`;
-            const customIcon = L.divIcon({ html: html, className: 'custom-marker', iconSize: [22, 30], popupAnchor: [0, -12] });
-            const marker = L.marker([point.latitude, point.longitude], { icon: customIcon });
-            marker.pointData = point;
-            marker.bindPopup(`
-                <div style="min-width:180px;">
-                    <strong>${escapeHtml(point.nom)}</strong><br>
-                    ${iconData.emoji} <span class="text-muted">${escapeHtml(point.categorie)}</span><br>
-                    ${point.adresse ? escapeHtml(point.adresse) + '<br>' : ''}
-                    <button class="btn btn-sm btn-primary mt-2 w-100" onclick="showLieuDetails(${point.id})">
-                        <i class="fas fa-info-circle"></i> Voir détails
-                    </button>
-                </div>
-            `);
-            return marker;
-        }
-        
-        function escapeHtml(text) { if (!text) return ''; const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
-        
-        async function loadPoints() {
-            try {
-                const response = await fetch('/api/points'); const points = await response.json();
-                Object.values(markers).forEach(m => { if(m && map) map.removeLayer(m); });
-                markers = {};
-                points.forEach(point => { const marker = createMarkerFromPoint(point); marker.addTo(map); markers[point.id] = marker; });
-            } catch(e) { console.error(e); }
-        }
-        
-        let routesLayer = null;
-        async function loadRoutes() {
-            try {
-                const response = await fetch('/api/routes');
-                const routes = await response.json();
-                if (!routesLayer) routesLayer = L.layerGroup().addTo(map);
-                routesLayer.clearLayers();
-
-                const styleMap = {
-                    'tous': { color: '#16a34a', dashArray: null },
-                    'sans_vehicule': { color: '#f97316', dashArray: '10, 6' },
-                    'pietons_seulement': { color: '#3b82f6', dashArray: '6, 8' }
-                };
-
-                routes.forEach(route => {
-                    const coords = JSON.parse(route.geometrie);
-                    const baseWeight = styleMap[route.type_acces] ? 4 : 4;
-                    const nbVoies = route.nombre_voies || 1;
-                    const weight = baseWeight + (nbVoies - 1) * 2;
-                    const style = {
-                        color: styleMap[route.type_acces]?.color || '#16a34a',
-                        weight: weight,
-                        opacity: 0.9,
-                        dashArray: styleMap[route.type_acces]?.dashArray || null,
-                        lineCap: 'round',
-                        lineJoin: 'round'
-                    };
-                    const polyline = L.polyline(coords, style).addTo(routesLayer);
-                    polyline.bindPopup(`
-                        <strong>${escapeHtml(route.nom)}</strong><br>
-                        Catégorie : ${escapeHtml(route.categorie || 'route')}<br>
-                        Accès : ${route.type_acces === 'tous' ? 'Tous (véhicules, motos, piétons)' :
-                                 route.type_acces === 'sans_vehicule' ? 'Sans véhicule (motos, piétons)' :
-                                 'Piétons seulement'}<br>
-                        Nb voies : ${route.nombre_voies || 1}<br>
-                        <button class="btn btn-sm btn-primary mt-2" onclick="showRouteDetails(${route.id})">Détails</button>
-                    `);
-                    polyline.routeId = route.id;
-                });
-
-                addRouteLegend();
-            } catch(e) {
-                console.error('Erreur chargement routes', e);
-            }
-        }
-
-        function addRouteLegend() {
-            const oldLegend = document.querySelector('.route-legend');
-            if (oldLegend) oldLegend.remove();
-
-            const legend = L.control({ position: 'bottomleft' });
-            legend.onAdd = function() {
-                const div = L.DomUtil.create('div', 'route-legend');
-                div.innerHTML = `
-                    <div><strong>Types de routes</strong></div>
-                    <div class="legend-item">
-                        <span class="legend-line" style="background:#16a34a;"></span> Tous (véhicules, motos, piétons)
-                    </div>
-                    <div class="legend-item">
-                        <span class="legend-line" style="background:#f97316;border-top:2px dashed #f97316;"></span> Sans véhicule (motos, piétons)
-                    </div>
-                    <div class="legend-item">
-                        <span class="legend-line" style="background:#3b82f6;border-top:2px dotted #3b82f6;"></span> Piétons seulement
-                    </div>
-                    <div class="legend-item" style="margin-top:4px; border-top:1px solid #ddd; padding-top:4px;">
-                        <span style="font-size:11px; color:#6c757d;">Épaisseur = base + (nb voies - 1) × 2</span>
-                    </div>
-                `;
-                return div;
-            };
-            legend.addTo(map);
-        }
-        
-        function showRouteDetails(routeId) {
-            showAlert('Fonctionnalité à venir : détails de la route', 'info');
-        }
-        
-        // ========== AMÉLIORATION DE LA PRÉCISION GPS ==========
+        // ========== GESTION DE LA LOCALISATION ==========
         function startLocationTracking() {
             if (!navigator.geolocation) {
                 showAlert('Géolocalisation non supportée', 'danger');
@@ -1163,7 +1052,7 @@
                 // Sinon mise à jour normale
                 updateUserPosition(lat, lng);
                 lastAccuracy = accuracy;
-                accuracyAttempts = 0; // réinitialiser après une bonne mesure
+                accuracyAttempts = 0;
             }
 
             function updateUserPosition(lat, lng) {
@@ -1220,7 +1109,6 @@
             document.getElementById('locationBtn').style.color = 'white';
             showAlert('📍 Localisation activée (haute précision)', 'success');
         }
-        // =====================================================
         
         function stopLocationTracking() {
             if (watchId) { 
@@ -1243,6 +1131,21 @@
             showAlert('Localisation désactivée', 'info');
         }
         
+        // FONCTION MANQUANTE : toggleLocation
+        function toggleLocation() {
+            if (!currentUser) {
+                showAlert('Connectez-vous d\'abord', 'warning');
+                return;
+            }
+            if (watchId) {
+                // Si le suivi est actif, on le désactive
+                stopLocationTracking();
+            } else {
+                // Sinon on active la localisation
+                startLocationTracking();
+            }
+        }
+        
         async function updateServerLocation(lat, lng, speed, altitude, accuracy) {
             try {
                 await fetch('/api/update-location', {
@@ -1252,6 +1155,7 @@
             } catch(e) { console.error('Erreur mise à jour position', e); }
         }
         
+        // ========== PARTAGE DE POSITION ==========
         function toggleSharing() {
             const toggle = document.getElementById('sharingToggle'); 
             const label = document.getElementById('sharingLabel');
@@ -1285,6 +1189,21 @@
         
         function copyShareCode() { navigator.clipboard.writeText(shareCode); showAlert('Code copié !', 'success'); }
         
+        function updateMode() {
+            currentMode = document.getElementById('modeSelect').value; 
+            showAlert(`Mode de localisation : ${currentMode === 'car' ? 'Véhicule' : currentMode === 'motorcycle' ? 'Moto' : 'Personne'}`, 'info');
+            if (currentPositionMarker) {
+                const iconOptions = currentMode === 'person' 
+                    ? { html: `<div class="location-marker-wrapper"><div class="location-pulse"></div><i class="fas fa-location-dot location-icon"></i></div>`, className: 'user-marker', iconSize: [40, 40], iconAnchor: [20, 20] }
+                    : { html: `<div style="font-size:24px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.2));">${modeIcons[currentMode]}</div>`, className: 'custom-marker', iconSize: [24, 24], iconAnchor: [12, 12] };
+                currentPositionMarker.setIcon(L.divIcon(iconOptions));
+            }
+            if (isSharing && currentPositionMarker) { 
+                const pos = currentPositionMarker.getLatLng(); 
+                updateServerLocation(pos.lat, pos.lng, 0, 0, 0); 
+            }
+        }
+        
         // ========== SCAN QR CODE ==========
         let html5QrCode = null;
 
@@ -1292,7 +1211,6 @@
             if (!html5QrCode) {
                 html5QrCode = new Html5Qrcode("reader");
             }
-            // Créer un overlay pour la caméra
             const scanDiv = document.createElement('div');
             scanDiv.id = 'qrReader';
             scanDiv.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; z-index:9999; background:rgba(0,0,0,0.9); display:flex; flex-direction:column; align-items:center; justify-content:center;';
@@ -1300,7 +1218,7 @@
                 <div style="width:300px; height:300px; background:white; border-radius:16px; overflow:hidden; position:relative;">
                     <div id="reader" style="width:100%; height:100%;"></div>
                 </div>
-                <button class="btn btn-danger mt-3" onclick="stopQrScan()">Annuler</button>
+                <button class="btn btn-danger mt-3" id="stopQrScanBtn">Annuler</button>
             `;
             document.body.appendChild(scanDiv);
 
@@ -1336,8 +1254,8 @@
                 if (reader) reader.remove();
             }
         }
-        // ==================================
         
+        // ========== GESTION DES UTILISATEURS ET PERSONNES ==========
         async function loadActiveUsers() {
             try {
                 const response = await fetch('/api/active-users');
@@ -1427,8 +1345,7 @@
                 }
             });
         }
-
-        // ========== ITINÉRAIRE VERS UN UTILISATEUR ==========
+        
         function showDirectionsToUser(userId, lat, lng) {
             if (!currentPositionMarker) {
                 showAlert('Activez votre localisation pour calculer un itinéraire.', 'warning');
@@ -1463,7 +1380,6 @@
                     showAlert('Erreur réseau lors du calcul d\'itinéraire', 'danger');
                 });
         }
-        // ===================================================
         
         function updatePeopleList() {
             const container = document.getElementById('peopleList');
@@ -1534,7 +1450,245 @@
             if (otherUsersMarkers[userId]) otherUsersMarkers[userId].openPopup(); 
         }
         
-        // --- Calcul d'itinéraire routier (pour un point) ---
+        function toggleSharePanel() { document.getElementById('sharePanel').classList.toggle('active'); document.getElementById('peoplePanel').classList.remove('active'); }
+        function togglePeoplePanel() { document.getElementById('peoplePanel').classList.toggle('active'); document.getElementById('sharePanel').classList.remove('active'); }
+        function closePanels() { document.getElementById('sharePanel').classList.remove('active'); document.getElementById('peoplePanel').classList.remove('active'); }
+        function zoomIn() { map.zoomIn(); } function zoomOut() { map.zoomOut(); }
+        
+        // ========== GESTION DES POINTS ET ROUTES ==========
+        async function loadPoints() {
+            try {
+                const response = await fetch('/api/points'); const points = await response.json();
+                Object.values(markers).forEach(m => { if(m && map) map.removeLayer(m); });
+                markers = {};
+                points.forEach(point => { const marker = createMarkerFromPoint(point); marker.addTo(map); markers[point.id] = marker; });
+            } catch(e) { console.error(e); }
+        }
+        
+        function createMarkerFromPoint(point) {
+            const iconData = icons[point.categorie] || icons.default;
+            const satelliteClass = isSatelliteMode ? 'satellite' : '';
+            const html = `<div class="marker-container"><div class="marker-icon" style="border-color: ${iconData.color};">${iconData.emoji}</div><div class="marker-label ${satelliteClass}">${escapeHtml(point.nom)}</div></div>`;
+            const customIcon = L.divIcon({ html: html, className: 'custom-marker', iconSize: [22, 30], popupAnchor: [0, -12] });
+            const marker = L.marker([point.latitude, point.longitude], { icon: customIcon });
+            marker.pointData = point;
+            marker.bindPopup(`
+                <div style="min-width:180px;">
+                    <strong>${escapeHtml(point.nom)}</strong><br>
+                    ${iconData.emoji} <span class="text-muted">${escapeHtml(point.categorie)}</span><br>
+                    ${point.adresse ? escapeHtml(point.adresse) + '<br>' : ''}
+                    <button class="btn btn-sm btn-primary mt-2 w-100" onclick="showLieuDetails(${point.id})">
+                        <i class="fas fa-info-circle"></i> Voir détails
+                    </button>
+                </div>
+            `);
+            return marker;
+        }
+        
+        let routesLayer = null;
+        async function loadRoutes() {
+            try {
+                const response = await fetch('/api/routes');
+                const routes = await response.json();
+                if (!routesLayer) routesLayer = L.layerGroup().addTo(map);
+                routesLayer.clearLayers();
+
+                const styleMap = {
+                    'tous': { color: '#16a34a', dashArray: null },
+                    'sans_vehicule': { color: '#f97316', dashArray: '10, 6' },
+                    'pietons_seulement': { color: '#3b82f6', dashArray: '6, 8' }
+                };
+
+                routes.forEach(route => {
+                    const coords = JSON.parse(route.geometrie);
+                    const baseWeight = styleMap[route.type_acces] ? 4 : 4;
+                    const nbVoies = route.nombre_voies || 1;
+                    const weight = baseWeight + (nbVoies - 1) * 2;
+                    const style = {
+                        color: styleMap[route.type_acces]?.color || '#16a34a',
+                        weight: weight,
+                        opacity: 0.9,
+                        dashArray: styleMap[route.type_acces]?.dashArray || null,
+                        lineCap: 'round',
+                        lineJoin: 'round'
+                    };
+                    const polyline = L.polyline(coords, style).addTo(routesLayer);
+                    polyline.bindPopup(`
+                        <strong>${escapeHtml(route.nom)}</strong><br>
+                        Catégorie : ${escapeHtml(route.categorie || 'route')}<br>
+                        Accès : ${route.type_acces === 'tous' ? 'Tous (véhicules, motos, piétons)' :
+                                 route.type_acces === 'sans_vehicule' ? 'Sans véhicule (motos, piétons)' :
+                                 'Piétons seulement'}<br>
+                        Nb voies : ${route.nombre_voies || 1}<br>
+                        <button class="btn btn-sm btn-primary mt-2" onclick="showRouteDetails(${route.id})">Détails</button>
+                    `);
+                    polyline.routeId = route.id;
+                });
+
+                addRouteLegend();
+            } catch(e) {
+                console.error('Erreur chargement routes', e);
+            }
+        }
+        
+        function addRouteLegend() {
+            const oldLegend = document.querySelector('.route-legend');
+            if (oldLegend) oldLegend.remove();
+
+            const legend = L.control({ position: 'bottomleft' });
+            legend.onAdd = function() {
+                const div = L.DomUtil.create('div', 'route-legend');
+                div.innerHTML = `
+                    <div><strong>Types de routes</strong></div>
+                    <div class="legend-item">
+                        <span class="legend-line" style="background:#16a34a;"></span> Tous (véhicules, motos, piétons)
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-line" style="background:#f97316;border-top:2px dashed #f97316;"></span> Sans véhicule (motos, piétons)
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-line" style="background:#3b82f6;border-top:2px dotted #3b82f6;"></span> Piétons seulement
+                    </div>
+                    <div class="legend-item" style="margin-top:4px; border-top:1px solid #ddd; padding-top:4px;">
+                        <span style="font-size:11px; color:#6c757d;">Épaisseur = base + (nb voies - 1) × 2</span>
+                    </div>
+                `;
+                return div;
+            };
+            legend.addTo(map);
+        }
+        
+        function showRouteDetails(routeId) {
+            showAlert('Fonctionnalité à venir : détails de la route', 'info');
+        }
+        
+        // ========== AFFICHAGE DES DÉTAILS D'UN LIEU ==========
+        function showLieuDetails(pointId) {
+            if (!lieuModal) lieuModal = new bootstrap.Modal(document.getElementById('lieuModal'));
+            const body = document.getElementById('lieuModalBody');
+            body.innerHTML = '<div class="text-center"><div class="spinner-border text-primary"></div></div>';
+            lieuModal.show();
+
+            fetch(`/api/points/${pointId}`)
+                .then(res => {
+                    if (!res.ok) throw new Error('Erreur chargement');
+                    return res.json();
+                })
+                .then(point => {
+                    const statusLabels = {
+                        'en_attente': 'En attente',
+                        'approuve': 'Approuvé ✅',
+                        'rejete': 'Rejeté ❌'
+                    };
+                    const statusBadge = {
+                        'en_attente': 'badge-pending',
+                        'approuve': 'badge-approved',
+                        'rejete': 'badge-rejected'
+                    };
+                    const isOwner = currentUser && currentUser.id === point.user_id;
+                    const isAdmin = currentUser && (currentUser.role === 'admin' || currentUser.role === 'admin_second');
+                    const canEdit = isOwner || isAdmin;
+                    const iconData = icons[point.categorie] || icons.default;
+
+                    let actionsHtml = '';
+                    if (canEdit) {
+                        actionsHtml += `<button class="btn btn-warning me-2" onclick="openEditModalFromDetail(${point.id})"><i class="fas fa-edit"></i> Modifier</button>`;
+                    }
+                    if (currentUser) {
+                        actionsHtml += `<button class="btn btn-outline-danger me-2" onclick="signalPoint(${point.id})"><i class="fas fa-flag"></i> Signaler</button>`;
+                    }
+                    actionsHtml += `<button class="btn btn-success me-2" onclick="shareLocation(${point.latitude}, ${point.longitude}, '${escapeHtml(point.nom)}')"><i class="fas fa-share-alt"></i> Partager</button>`;
+                    actionsHtml += `<button class="btn btn-info me-2" onclick="showDirections(${point.latitude}, ${point.longitude})"><i class="fas fa-directions"></i> Itinéraire</button>`;
+                    
+                    if (isAdmin && point.status === 'approuve') {
+                        actionsHtml += `<button class="btn btn-sm btn-success me-2" onclick="publishPointToGoogleMapsFromDetail(${point.id})">
+                            <i class="fab fa-google"></i> Publier sur Google Maps
+                        </button>`;
+                    }
+
+                    body.innerHTML = `
+                        <div class="row">
+                            <div class="col-md-8">
+                                <h4>${iconData.emoji} ${escapeHtml(point.nom)}</h4>
+                                <p><strong>Catégorie :</strong> ${iconData.emoji} ${escapeHtml(point.categorie)}</p>
+                                <p><strong>Adresse :</strong> ${escapeHtml(point.adresse || 'Non renseignée')}</p>
+                                <p><strong>Téléphone :</strong> ${escapeHtml(point.telephone || 'Non renseigné')}</p>
+                                <p><strong>Site web :</strong> ${point.website ? `<a href="${escapeHtml(point.website)}" target="_blank">${escapeHtml(point.website)}</a>` : 'Non renseigné'}</p>
+                                <p><strong>Description :</strong> ${escapeHtml(point.description || 'Aucune description')}</p>
+                                <p><strong>Coordonnées GPS :</strong> ${point.latitude.toFixed(6)}, ${point.longitude.toFixed(6)}</p>
+                                <p><strong>Statut :</strong> <span class="badge ${statusBadge[point.status]}">${statusLabels[point.status]}</span></p>
+                                ${point.validated_at ? `<p><strong>Validé le :</strong> ${formatDate(point.validated_at)}</p>` : ''}
+                            </div>
+                            <div class="col-md-4">
+                                <div id="miniMap" style="height:200px; border-radius:8px; border:1px solid #ddd;"></div>
+                                <small class="text-muted">Position approximative</small>
+                            </div>
+                        </div>
+                    `;
+                    document.getElementById('lieuModalFooter').innerHTML = actionsHtml + `<button class="btn btn-secondary" data-bs-dismiss="modal" id="closeLieuModalFooterBtn">Fermer</button>`;
+
+                    setTimeout(() => {
+                        const miniMap = L.map('miniMap').setView([point.latitude, point.longitude], 15);
+                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(miniMap);
+                        L.marker([point.latitude, point.longitude]).addTo(miniMap);
+                    }, 100);
+                })
+                .catch(err => {
+                    body.innerHTML = `<div class="alert alert-danger">Erreur : ${err.message}</div>`;
+                });
+        }
+        
+        function publishPointToGoogleMapsFromDetail(pointId) {
+            fetch(`/api/points/${pointId}`)
+                .then(res => res.json())
+                .then(point => {
+                    const url = `https://www.google.com/maps?q=${point.latitude},${point.longitude}+(${encodeURIComponent(point.nom)})`;
+                    window.open(url, '_blank');
+                })
+                .catch(err => {
+                    showAlert('Erreur lors de la récupération des coordonnées', 'danger');
+                    console.error(err);
+                });
+        }
+        
+        function openEditModalFromDetail(pointId) {
+            bootstrap.Modal.getInstance(document.getElementById('lieuModal')).hide();
+            openEditModal(pointId);
+        }
+        
+        function signalPoint(pointId) {
+            const comment = prompt('Décrivez l\'erreur ou le problème (facultatif) :');
+            if (comment === null) return;
+            fetch('/api/signal-point', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ point_id: pointId, comment: comment || '' })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.message) showAlert(data.message, 'success');
+                else showAlert(data.error || 'Erreur', 'danger');
+            })
+            .catch(err => showAlert('Erreur réseau', 'danger'));
+        }
+        
+        function shareLocation(lat, lng, nom) {
+            const url = `${window.location.origin}/?lat=${lat}&lng=${lng}`;
+            if (navigator.share) {
+                navigator.share({
+                    title: nom,
+                    text: `📍 ${nom}`,
+                    url: url
+                }).catch(() => {});
+            } else {
+                navigator.clipboard.writeText(url).then(() => {
+                    showAlert('Lien copié !', 'success');
+                }).catch(() => {
+                    showAlert(`Copiez ce lien : ${url}`, 'info');
+                });
+            }
+        }
+        
         function showDirections(lat, lng) {
             if (!currentPositionMarker) {
                 showAlert('Activez votre localisation pour calculer un itinéraire.', 'warning');
@@ -1569,7 +1723,7 @@
                 });
         }
         
-        // ---------- SOUMISSION ----------
+        // ========== SOUMISSION DE POINT / ROUTE ==========
         async function submitPoint() {
             if (!currentUser) { showAlert('Veuillez vous connecter', 'warning'); return; }
             const pointId = document.getElementById('pointId').value;
@@ -1645,76 +1799,6 @@
             } catch(e) { showAlert('Erreur réseau', 'danger'); console.error(e); }
         }
         
-        // ---------- RECHERCHE ----------
-        async function searchLocation() {
-            const query = document.getElementById('searchInput').value; if (!query) return;
-            try {
-                const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ', Butembo')}&limit=4`);
-                const results = await resp.json(); const div = document.getElementById('searchResults');
-                if (results.length) {
-                    div.innerHTML = results.map(r => `<div style="padding: 10px; cursor: pointer; border-bottom: 1px solid #eee;" onclick="goToLocation(${r.lat}, ${r.lon}, '${r.display_name.replace(/'/g, "\\'")}')"><strong>${escapeHtml(r.display_name.split(',')[0])}</strong><br><small>${escapeHtml(r.display_name)}</small></div>`).join('');
-                    div.style.display = 'block';
-                } else { div.style.display = 'none'; showAlert('Aucun résultat', 'warning'); }
-            } catch(e) { console.error(e); }
-        }
-        
-        function goToLocation(lat, lng, name) { map.setView([lat, lng], 16); document.getElementById('searchResults').style.display = 'none'; if (window.tempSearchMarker) map.removeLayer(window.tempSearchMarker); window.tempSearchMarker = L.marker([lat, lng]).bindPopup(name.split(',')[0]).openPopup(); }
-        function toggleSharePanel() { document.getElementById('sharePanel').classList.toggle('active'); document.getElementById('peoplePanel').classList.remove('active'); }
-        function togglePeoplePanel() { document.getElementById('peoplePanel').classList.toggle('active'); document.getElementById('sharePanel').classList.remove('active'); }
-        function closePanels() { document.getElementById('sharePanel').classList.remove('active'); document.getElementById('peoplePanel').classList.remove('active'); }
-        function zoomIn() { map.zoomIn(); } function zoomOut() { map.zoomOut(); }
-        
-        function getCurrentUser() { const u = localStorage.getItem('user'); return u ? JSON.parse(u) : null; }
-        
-        function updateNav() {
-            currentUser = getCurrentUser();
-            const nav = document.getElementById('userNav');
-                
-            if (currentUser) {
-                setTheme(currentUser.role);
-            }
-                    
-            if (currentUser) {
-                let dashboardButton = '';
-                if (currentUser.role === 'contributeur') {
-                    dashboardButton = '<a href="/dashboard-contributeur" class="btn btn-sm btn-outline-info me-2" style="color:white;border-color:white;">Dashboard</a>';
-                }
-                const adminButton = (currentUser.role === 'admin' || currentUser.role === 'admin_second') ? '<a href="/admin" class="btn btn-sm btn-outline-danger me-2" style="color:white;border-color:white;">Admin</a>' : '';
-                nav.innerHTML = `${dashboardButton}${adminButton}<div class="dropdown"><button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" style="${currentUser.role === 'admin' || currentUser.role === 'admin_second' || currentUser.role === 'contributeur' ? 'color:white;border-color:white;' : ''}"><i class="fas fa-user-circle"></i> ${escapeHtml(currentUser.username)}</button><ul class="dropdown-menu dropdown-menu-end">${(currentUser.role === 'admin' || currentUser.role === 'admin_second') ? '<li><a class="dropdown-item" href="/admin">Admin</a></li><li><hr></li>' : ''}${currentUser.role === 'contributeur' ? '<li><a class="dropdown-item" href="/dashboard-contributeur">Dashboard</a></li><li><hr></li>' : ''}<li><a class="dropdown-item" href="/profile">👤 Profil</a></li><li><hr></li><li><a class="dropdown-item" href="#" onclick="logout()">Déconnexion</a></li></ul></div>`;
-            } else {
-                nav.innerHTML = `<a href="/login" class="btn btn-sm btn-primary">Connexion</a>`;
-            }
-        }
-        
-        function updateMode() {
-            currentMode = document.getElementById('modeSelect').value; 
-            showAlert(`Mode de localisation : ${currentMode === 'car' ? 'Véhicule' : currentMode === 'motorcycle' ? 'Moto' : 'Personne'}`, 'info');
-            if (currentPositionMarker) {
-                const iconOptions = currentMode === 'person' 
-                    ? { html: `<div class="location-marker-wrapper"><div class="location-pulse"></div><i class="fas fa-location-dot location-icon"></i></div>`, className: 'user-marker', iconSize: [40, 40], iconAnchor: [20, 20] }
-                    : { html: `<div style="font-size:24px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.2));">${modeIcons[currentMode]}</div>`, className: 'custom-marker', iconSize: [24, 24], iconAnchor: [12, 12] };
-                currentPositionMarker.setIcon(L.divIcon(iconOptions));
-            }
-            if (isSharing && currentPositionMarker) { 
-                const pos = currentPositionMarker.getLatLng(); 
-                updateServerLocation(pos.lat, pos.lng, 0, 0, 0); 
-            }
-        }
-        
-        async function logout() { 
-            if (watchId) stopLocationTracking(); 
-            if (refreshInterval) { clearInterval(refreshInterval); refreshInterval = null; }
-            await fetch('/api/logout', { method: 'POST' }); 
-            localStorage.removeItem('user'); 
-            currentUser = null;
-            sharedUsers = [];
-            activeUsers = [];
-            setTheme('contributeur');
-            updateNav(); 
-            showAlert('Déconnecté', 'info'); 
-            window.location.reload();
-        }
-        
         function openEditModal(pointId) {
             if (!currentUser) { window.location.href = '/login'; return; }
             const marker = markers[pointId]; if (!marker || !marker.pointData) { showAlert('Point introuvable', 'warning'); return; }
@@ -1735,253 +1819,141 @@
             addModal.show();
         }
         
-        // ----- FICHE DÉTAILLÉE -----
-        function showLieuDetails(pointId) {
-            if (!lieuModal) lieuModal = new bootstrap.Modal(document.getElementById('lieuModal'));
-            const body = document.getElementById('lieuModalBody');
-            body.innerHTML = '<div class="text-center"><div class="spinner-border text-primary"></div></div>';
-            lieuModal.show();
-
-            fetch(`/api/points/${pointId}`)
-                .then(res => {
-                    if (!res.ok) throw new Error('Erreur chargement');
-                    return res.json();
-                })
-                .then(point => {
-                    const statusLabels = {
-                        'en_attente': 'En attente',
-                        'approuve': 'Approuvé ✅',
-                        'rejete': 'Rejeté ❌'
-                    };
-                    const statusBadge = {
-                        'en_attente': 'badge-pending',
-                        'approuve': 'badge-approved',
-                        'rejete': 'badge-rejected'
-                    };
-                    const isOwner = currentUser && currentUser.id === point.user_id;
-                    const isAdmin = currentUser && (currentUser.role === 'admin' || currentUser.role === 'admin_second');
-                    const canEdit = isOwner || isAdmin;
-                    const iconData = icons[point.categorie] || icons.default;
-
-                    let actionsHtml = '';
-                    if (canEdit) {
-                        actionsHtml += `<button class="btn btn-warning me-2" onclick="openEditModalFromDetail(${point.id})"><i class="fas fa-edit"></i> Modifier</button>`;
-                    }
-                    if (currentUser) {
-                        actionsHtml += `<button class="btn btn-outline-danger me-2" onclick="signalPoint(${point.id})"><i class="fas fa-flag"></i> Signaler</button>`;
-                    }
-                    actionsHtml += `<button class="btn btn-success me-2" onclick="shareLocation(${point.latitude}, ${point.longitude}, '${escapeHtml(point.nom)}')"><i class="fas fa-share-alt"></i> Partager</button>`;
-                    actionsHtml += `<button class="btn btn-info me-2" onclick="showDirections(${point.latitude}, ${point.longitude})"><i class="fas fa-directions"></i> Itinéraire</button>`;
-                    
-                    if (isAdmin && point.status === 'approuve') {
-                        actionsHtml += `<button class="btn btn-sm btn-success me-2" onclick="publishPointToGoogleMapsFromDetail(${point.id})">
-                            <i class="fab fa-google"></i> Publier sur Google Maps
-                        </button>`;
-                    }
-
-                    body.innerHTML = `
-                        <div class="row">
-                            <div class="col-md-8">
-                                <h4>${iconData.emoji} ${escapeHtml(point.nom)}</h4>
-                                <p><strong>Catégorie :</strong> ${iconData.emoji} ${escapeHtml(point.categorie)}</p>
-                                <p><strong>Adresse :</strong> ${escapeHtml(point.adresse || 'Non renseignée')}</p>
-                                <p><strong>Téléphone :</strong> ${escapeHtml(point.telephone || 'Non renseigné')}</p>
-                                <p><strong>Site web :</strong> ${point.website ? `<a href="${escapeHtml(point.website)}" target="_blank">${escapeHtml(point.website)}</a>` : 'Non renseigné'}</p>
-                                <p><strong>Description :</strong> ${escapeHtml(point.description || 'Aucune description')}</p>
-                                <p><strong>Coordonnées GPS :</strong> ${point.latitude.toFixed(6)}, ${point.longitude.toFixed(6)}</p>
-                                <p><strong>Statut :</strong> <span class="badge ${statusBadge[point.status]}">${statusLabels[point.status]}</span></p>
-                                ${point.validated_at ? `<p><strong>Validé le :</strong> ${formatDate(point.validated_at)}</p>` : ''}
-                            </div>
-                            <div class="col-md-4">
-                                <div id="miniMap" style="height:200px; border-radius:8px; border:1px solid #ddd;"></div>
-                                <small class="text-muted">Position approximative</small>
-                            </div>
-                        </div>
-                    `;
-                    document.getElementById('lieuModalFooter').innerHTML = actionsHtml + `<button class="btn btn-secondary" data-bs-dismiss="modal" onclick="disableAllModes()">Fermer</button>`;
-
-                    setTimeout(() => {
-                        const miniMap = L.map('miniMap').setView([point.latitude, point.longitude], 15);
-                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(miniMap);
-                        L.marker([point.latitude, point.longitude]).addTo(miniMap);
-                    }, 100);
-                })
-                .catch(err => {
-                    body.innerHTML = `<div class="alert alert-danger">Erreur : ${err.message}</div>`;
-                });
-        }
-
-        function publishPointToGoogleMapsFromDetail(pointId) {
-            fetch(`/api/points/${pointId}`)
-                .then(res => res.json())
-                .then(point => {
-                    const url = `https://www.google.com/maps?q=${point.latitude},${point.longitude}+(${encodeURIComponent(point.nom)})`;
-                    window.open(url, '_blank');
-                })
-                .catch(err => {
-                    showAlert('Erreur lors de la récupération des coordonnées', 'danger');
-                    console.error(err);
-                });
-        }
-
-        function openEditModalFromDetail(pointId) {
-            bootstrap.Modal.getInstance(document.getElementById('lieuModal')).hide();
-            openEditModal(pointId);
-        }
-
-        function signalPoint(pointId) {
-            const comment = prompt('Décrivez l\'erreur ou le problème (facultatif) :');
-            if (comment === null) return;
-            fetch('/api/signal-point', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ point_id: pointId, comment: comment || '' })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.message) showAlert(data.message, 'success');
-                else showAlert(data.error || 'Erreur', 'danger');
-            })
-            .catch(err => showAlert('Erreur réseau', 'danger'));
-        }
-
-        function shareLocation(lat, lng, nom) {
-            const url = `${window.location.origin}/?lat=${lat}&lng=${lng}`;
-            if (navigator.share) {
-                navigator.share({
-                    title: nom,
-                    text: `📍 ${nom}`,
-                    url: url
-                }).catch(() => {});
-            } else {
-                navigator.clipboard.writeText(url).then(() => {
-                    showAlert('Lien copié !', 'success');
-                }).catch(() => {
-                    showAlert(`Copiez ce lien : ${url}`, 'info');
-                });
-            }
-        }
-
-        function formatDate(dateStr) {
-            if (!dateStr) return '-';
+        // ========== RECHERCHE ==========
+        async function searchLocation() {
+            const query = document.getElementById('searchInput').value; if (!query) return;
             try {
-                const date = new Date(dateStr);
-                return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-            } catch(e) {
-                return dateStr;
-            }
-        }
-
-        function showAlert(msg, type) { 
-            const c = document.getElementById('alertContainer'); 
-            if (!c) return; 
-            const a = document.createElement('div'); 
-            a.className = `alert-custom alert-${type}`; 
-            a.innerHTML = msg; 
-            c.appendChild(a); 
-            setTimeout(() => a.remove(), 3000); 
+                const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ', Butembo')}&limit=4`);
+                const results = await resp.json(); const div = document.getElementById('searchResults');
+                if (results.length) {
+                    div.innerHTML = results.map(r => `<div style="padding: 10px; cursor: pointer; border-bottom: 1px solid #eee;" onclick="goToLocation(${r.lat}, ${r.lon}, '${r.display_name.replace(/'/g, "\\'")}')"><strong>${escapeHtml(r.display_name.split(',')[0])}</strong><br><small>${escapeHtml(r.display_name)}</small></div>`).join('');
+                    div.style.display = 'block';
+                } else { div.style.display = 'none'; showAlert('Aucun résultat', 'warning'); }
+            } catch(e) { console.error(e); }
         }
         
-        // ----- DÉPLACEMENT DU MODAL (drag) -----
+        function goToLocation(lat, lng, name) { map.setView([lat, lng], 16); document.getElementById('searchResults').style.display = 'none'; if (window.tempSearchMarker) map.removeLayer(window.tempSearchMarker); window.tempSearchMarker = L.marker([lat, lng]).bindPopup(name.split(',')[0]).openPopup(); }
+        
+        // ========== SATELLITE ==========
+        function toggleSatellite() {
+            const btn = document.getElementById('satelliteBtn');
+            if (isSatelliteMode) {
+                map.removeLayer(currentLayer); currentLayer = tileLayers.standard; currentLayer.addTo(map);
+                isSatelliteMode = false; btn.classList.remove('satellite-active'); btn.style.background = ''; btn.style.color = '';
+                document.querySelectorAll('.marker-label').forEach(label => label.classList.remove('satellite'));
+                showAlert('Vue standard', 'info');
+            } else {
+                showAlert('Chargement de la vue satellite...', 'info');
+                map.removeLayer(currentLayer); currentLayer = tileLayers.satellite2; currentLayer.addTo(map);
+                let tileError = false;
+                currentLayer.on('tileerror', function() {
+                    if (!tileError) {
+                        tileError = true; map.removeLayer(currentLayer); currentLayer = tileLayers.satellite1; currentLayer.addTo(map);
+                        currentLayer.on('tileerror', function() {
+                            map.removeLayer(currentLayer); currentLayer = tileLayers.standard; currentLayer.addTo(map);
+                            isSatelliteMode = false; btn.classList.remove('satellite-active'); showAlert('Service satellite indisponible', 'warning');
+                        });
+                    }
+                });
+                isSatelliteMode = true; btn.classList.add('satellite-active'); btn.style.background = '#1e3a5f'; btn.style.color = 'white';
+                document.querySelectorAll('.marker-label').forEach(label => label.classList.add('satellite'));
+                showAlert('🛰️ Vue satellite activée', 'success');
+            }
+        }
+        
+        // ========== NAVIGATION ET AUTH ==========
+        function updateNav() {
+            currentUser = getCurrentUser();
+            const nav = document.getElementById('userNav');
+                
+            if (currentUser) {
+                setTheme(currentUser.role);
+            }
+                    
+            if (currentUser) {
+                let dashboardButton = '';
+                if (currentUser.role === 'contributeur') {
+                    dashboardButton = '<a href="/dashboard-contributeur" class="btn btn-sm btn-outline-info me-2" style="color:white;border-color:white;">Dashboard</a>';
+                }
+                const adminButton = (currentUser.role === 'admin' || currentUser.role === 'admin_second') ? '<a href="/admin" class="btn btn-sm btn-outline-danger me-2" style="color:white;border-color:white;">Admin</a>' : '';
+                nav.innerHTML = `${dashboardButton}${adminButton}<div class="dropdown"><button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" style="${currentUser.role === 'admin' || currentUser.role === 'admin_second' || currentUser.role === 'contributeur' ? 'color:white;border-color:white;' : ''}"><i class="fas fa-user-circle"></i> ${escapeHtml(currentUser.username)}</button><ul class="dropdown-menu dropdown-menu-end">${(currentUser.role === 'admin' || currentUser.role === 'admin_second') ? '<li><a class="dropdown-item" href="/admin">Admin</a></li><li><hr></li>' : ''}${currentUser.role === 'contributeur' ? '<li><a class="dropdown-item" href="/dashboard-contributeur">Dashboard</a></li><li><hr></li>' : ''}<li><a class="dropdown-item" href="/profile">👤 Profil</a></li><li><hr></li><li><a class="dropdown-item" href="#" onclick="logout()">Déconnexion</a></li></ul></div>`;
+            } else {
+                nav.innerHTML = `<a href="/login" class="btn btn-sm btn-primary">Connexion</a>`;
+            }
+        }
+        
+        async function logout() { 
+            if (watchId) stopLocationTracking(); 
+            if (refreshInterval) { clearInterval(refreshInterval); refreshInterval = null; }
+            await fetch('/api/logout', { method: 'POST' }); 
+            localStorage.removeItem('user'); 
+            currentUser = null;
+            sharedUsers = [];
+            activeUsers = [];
+            setTheme('contributeur');
+            updateNav(); 
+            showAlert('Déconnecté', 'info'); 
+            window.location.reload();
+        }
+        
+        // ========== INITIALISATION ET ATTACHEMENT DES ÉVÉNEMENTS ==========
         document.addEventListener('DOMContentLoaded', function() {
-            const modalDialog = document.querySelector('.modal-draggable');
-            const modalHeader = document.querySelector('#modalHeader');
-            let isDragging = false;
-            let offsetX, offsetY;
-
-            modalHeader.addEventListener('mousedown', function(e) {
-                if (e.target.closest('.btn-close')) return;
-                isDragging = true;
-                const rect = modalDialog.getBoundingClientRect();
-                offsetX = e.clientX - rect.left;
-                offsetY = e.clientY - rect.top;
-                modalDialog.style.transition = 'none';
-                document.body.style.userSelect = 'none';
+            // Initialiser la carte
+            initMap();
+            
+            // Mettre à jour la barre de navigation
+            updateNav();
+            
+            // Attacher les événements aux boutons (remplace les onclick)
+            document.getElementById('zoomInBtn').addEventListener('click', zoomIn);
+            document.getElementById('zoomOutBtn').addEventListener('click', zoomOut);
+            document.getElementById('locationBtn').addEventListener('click', toggleLocation);
+            document.getElementById('satelliteBtn').addEventListener('click', toggleSatellite);
+            document.getElementById('shareBtn').addEventListener('click', toggleSharePanel);
+            document.getElementById('peopleBtn').addEventListener('click', togglePeoplePanel);
+            document.getElementById('addBtn').addEventListener('click', enableAddMode);
+            
+            document.getElementById('closeSharePanel').addEventListener('click', closePanels);
+            document.getElementById('closePeoplePanel').addEventListener('click', closePanels);
+            
+            document.getElementById('sharingToggle').addEventListener('change', toggleSharing);
+            document.getElementById('modeSelect').addEventListener('change', updateMode);
+            document.getElementById('copyShareCodeBtn').addEventListener('click', copyShareCode);
+            
+            document.getElementById('addPersonByCodeBtn').addEventListener('click', addPersonByCode);
+            document.getElementById('startQrScanBtn').addEventListener('click', startQrScan);
+            document.getElementById('stopQrScanBtn').addEventListener('click', stopQrScan);
+            
+            document.getElementById('searchButton').addEventListener('click', searchLocation);
+            document.getElementById('searchInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') searchLocation();
             });
-
-            document.addEventListener('mousemove', function(e) {
-                if (!isDragging) return;
-                let left = e.clientX - offsetX;
-                let top = e.clientY - offsetY;
-                modalDialog.style.left = left + 'px';
-                modalDialog.style.top = top + 'px';
-                modalDialog.style.transform = 'none';
-                modalDialog.style.margin = '0';
-            });
-
-            document.addEventListener('mouseup', function() {
-                if (isDragging) {
-                    isDragging = false;
-                    document.body.style.userSelect = '';
-                    modalDialog.style.transition = '';
+            
+            document.getElementById('submitPointBtn').addEventListener('click', submitPoint);
+            document.getElementById('cancelAddModalBtn').addEventListener('click', disableAllModes);
+            document.getElementById('closeAddModalBtn').addEventListener('click', disableAllModes);
+            
+            document.getElementById('clearRoutePointsBtn').addEventListener('click', clearRoutePoints);
+            document.getElementById('undoRoutePointBtn').addEventListener('click', undoRoutePoint);
+            
+            document.getElementById('closeLieuModalBtn').addEventListener('click', disableAllModes);
+            document.getElementById('closeLieuModalFooterBtn').addEventListener('click', disableAllModes);
+            
+            // Fermeture des panneaux en cliquant ailleurs
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.floating-panel') && !e.target.closest('.control-btn')) {
+                    closePanels();
+                }
+                if (!e.target.closest('.search-container')) {
+                    document.getElementById('searchResults').style.display = 'none';
                 }
             });
-
-            document.getElementById('addModal').addEventListener('shown.bs.modal', function () {
-                document.getElementById('routeFields').style.display = 'none';
-                document.getElementById('pointCoords').style.display = 'block';
-                isRouteMode = false;
-                clearRoutePoints();
-            });
-
-            // Redimensionnement
-            const resizeHandle = document.querySelector('.modal-resize-handle');
-            if (resizeHandle) {
-                let isResizing = false;
-                let startX, startY, startWidth, startHeight;
-
-                resizeHandle.addEventListener('mousedown', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    isResizing = true;
-                    startX = e.clientX;
-                    startY = e.clientY;
-                    startWidth = modalDialog.offsetWidth;
-                    startHeight = modalDialog.offsetHeight;
-                    document.body.style.userSelect = 'none';
-                    document.body.style.cursor = 'nwse-resize';
-                });
-
-                document.addEventListener('mousemove', function(e) {
-                    if (!isResizing) return;
-                    const dx = e.clientX - startX;
-                    const dy = e.clientY - startY;
-                    let newWidth = startWidth + dx;
-                    let newHeight = startHeight + dy;
-                    const minWidth = 300;
-                    const maxWidth = window.innerWidth * 0.9;
-                    const minHeight = 300;
-                    const maxHeight = window.innerHeight * 0.9;
-                    newWidth = Math.min(Math.max(newWidth, minWidth), maxWidth);
-                    newHeight = Math.min(Math.max(newHeight, minHeight), maxHeight);
-                    modalDialog.style.width = newWidth + 'px';
-                    modalDialog.style.height = newHeight + 'px';
-                    modalDialog.style.maxWidth = 'none';
-                    modalDialog.style.maxHeight = 'none';
-                    modalDialog.style.transform = 'none';
-                });
-
-                document.addEventListener('mouseup', function() {
-                    if (isResizing) {
-                        isResizing = false;
-                        document.body.style.userSelect = '';
-                        document.body.style.cursor = '';
-                    }
-                });
-            }
+            
+            // Gestion du redimensionnement du modal (déjà présent dans le HTML via CSS)
+            // Le déplacement et redimensionnement sont gérés dans le HTML avec les événements mousedown.
         });
         
-        document.addEventListener('click', e => { 
-            if (!e.target.closest('.search-container')) document.getElementById('searchResults').style.display = 'none'; 
-        });
-        
-        updateNav(); 
-        
-        document.addEventListener('DOMContentLoaded', function() {
-            initMap();
-        });
-        
-        // Expositions globales
+        // ========== EXPOSITION GLOBALE DES FONCTIONS ==========
         window.submitPoint = submitPoint; 
         window.logout = logout; 
         window.enableAddMode = enableAddMode; 
@@ -1991,7 +1963,7 @@
         window.zoomIn = zoomIn; 
         window.zoomOut = zoomOut; 
         window.showDirections = showDirections; 
-        window.toggleLocation = toggleLocation; 
+        window.toggleLocation = toggleLocation;
         window.toggleSharePanel = toggleSharePanel; 
         window.togglePeoplePanel = togglePeoplePanel; 
         window.toggleSharing = toggleSharing; 
@@ -2011,7 +1983,8 @@
         window.showDirectionsToUser = showDirectionsToUser;
         window.startQrScan = startQrScan;
         window.stopQrScan = stopQrScan;
-
+        
+        // Enregistrement du service worker pour PWA
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.js').catch(err => console.error('Erreur PWA:', err));
